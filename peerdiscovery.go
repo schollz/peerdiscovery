@@ -177,6 +177,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			continue
 		}
 	}
+	err = nil
 
 	// Loop forever reading from the socket
 	for {
@@ -188,10 +189,10 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			return
 		}
 
-		if src.String()+":"+port == currentIP+":"+port {
+		if src.String() == currentIP+":"+port {
 			continue
 		}
-		if src.String()+":"+port == "127.0.0.1:"+port {
+		if src.String() == "127.0.0.1:"+port {
 			continue
 		}
 		log.Println(src, hex.Dump(buffer[:n]))
