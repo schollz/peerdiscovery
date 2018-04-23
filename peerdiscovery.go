@@ -83,7 +83,7 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 			exit = true
 		}
 		p.Unlock()
-		conn.Write(payload)
+		// conn.Write(payload)
 		if exit || t.Sub(start) > timeLimit {
 			break
 		}
