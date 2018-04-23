@@ -64,6 +64,7 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	address := p.settings.MulticastAddress + ":" + p.settings.Port
 	payload := p.settings.Payload
 	tickerDuration := p.settings.Delay
+	timeLimit := p.settings.TimeLimit
 	p.RUnlock()
 
 	conn, err := newBroadcast(address)
@@ -84,7 +85,7 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 		}
 		p.Unlock()
 		conn.Write(payload)
-		if exit || t.Sub(start) > 10*time.Second {
+		if exit || t.Sub(start) > timeLimit {
 			break
 		}
 	}
@@ -162,13 +163,13 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			return
 		}
 
-		// log.Println(numBytes, "bytes read from", src)
 		// log.Println(hex.Dump(buffer[:numBytes]))
 		// log.Println(string(buffer))
 
 		if src.IP.String() == currentIP {
 			continue
 		}
+		// log.Println(numBytes, "bytes read from", src)
 
 		p.Lock()
 		if _, ok := p.received[src.IP.String()]; !ok {
