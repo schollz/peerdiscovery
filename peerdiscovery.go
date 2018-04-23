@@ -66,11 +66,33 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	timeLimit := p.settings.TimeLimit
 	p.RUnlock()
 
-	conn, err := newBroadcast(address)
+	// get interfaces
+	ifaces, err := net.Interfaces()
 	if err != nil {
+		log.Println("getting interfaces")
+		log.Println(err)
 		return
 	}
-	defer conn.Close()
+	log.Println(ifaces)
+
+	// Open up a connection
+	c, err := net.ListenPacket("udp4", "239.255.255.250:9999")
+	if err != nil {
+		log.Println("getting interfaces")
+		log.Println(err)
+		return
+	}
+	defer c.Close()
+
+	group := net.IPv4(239, 255, 255, 250)
+	p2 := ipv4.NewPacketConn(c)
+	for i := range ifaces {
+		if err = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: 9999}); err != nil {
+			log.Println(ifaces[i], "JoinGroup1")
+			log.Println(err)
+			continue
+		}
+	}
 
 	go p.listen()
 	ticker := time.NewTicker(tickerDuration)
@@ -83,7 +105,16 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 			exit = true
 		}
 		p.Unlock()
-		// conn.Write(payload)
+		dst := &net.UDPAddr{IP: group, Port: 9999}
+		for i := range ifaces {
+			if err := p2.SetMulticastInterface(&ifaces[i]); err != nil {
+				continue
+			}
+			p2.SetMulticastTTL(2)
+			if _, err := p2.WriteTo([]byte("hi"), nil, dst); err != nil {
+				continue
+			}
+		}
 		if exit || t.Sub(start) > timeLimit {
 			break
 		}
@@ -191,17 +222,6 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		// 	}
 		// }
 
-		dst := &net.UDPAddr{IP: group, Port: 9999}
-
-		for i := range ifaces {
-			if err := p2.SetMulticastInterface(&ifaces[i]); err != nil {
-				continue
-			}
-			p2.SetMulticastTTL(2)
-			if _, err := p2.WriteTo([]byte("hi"), nil, dst); err != nil {
-				continue
-			}
-		}
 		// p.Lock()
 		// if _, ok := p.received[src.IP.String()]; !ok {
 		// 	p.received[src.IP.String()] = buffer[:numBytes]
