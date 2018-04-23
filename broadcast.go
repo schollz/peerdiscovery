@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"log"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -11,23 +12,64 @@ import (
 
 var address = "239.0.0.0:9999"
 
-type PeerDiscovery struct {
-	listenerRecieved      []byte
-	numClientsToDiscovery int
+type Settings struct {
+	Limit            int
+	Port             string
+	MulticastAddress string
+	Payload          []byte
 }
 
-func (p *PeerDiscovery) Broadcast() {
-	conn, err := newBroadcast(address)
+type PeerDiscovery struct {
+	settings Settings
+	localIP  string
+	received map[string][]byte
+	sync.RWMutex
+}
+
+func New(settings ...Settings) (p *PeerDiscovery) {
+	p = new(PeerDiscovery)
+	p.Lock()
+	defer p.Unlock()
+	if len(settings) > 0 {
+		p.settings = settings[0]
+	}
+	// defaults
+	if p.settings.Port == "" {
+		p.settings.Port = "9999"
+	}
+	if p.settings.MulticastAddress == "" {
+		p.settings.MulticastAddress = "239.0.0.0"
+	}
+	if len(p.settings.Payload) == 0 {
+		p.settings.Payload = []byte("hi")
+	}
+	p.localIP = GetLocalIP()
+	p.received = make(map[string][]byte)
+	log.Println(p.settings)
+	return
+}
+
+func (p *PeerDiscovery) Discover() {
+	p.RLock()
+	conn, err := newBroadcast(p.settings.MulticastAddress + ":" + p.settings.Port)
+	payload := p.settings.Payload
+	p.RUnlock()
 	if err != nil {
 		return
 	}
-	go p.Listen()
+	go p.listen()
 	for {
-		if len(p.listenerRecieved) > 0 {
+		exit := false
+		p.Lock()
+		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
+			exit = true
+		}
+		p.Unlock()
+		conn.Write(payload)
+		time.Sleep(1 * time.Second)
+		if exit {
 			break
 		}
-		conn.Write([]byte("hello, world"))
-		time.Sleep(1 * time.Second)
 	}
 	return
 }
@@ -45,12 +87,6 @@ func newBroadcast(address string) (*net.UDPConn, error) {
 	}
 
 	return conn, nil
-
-}
-
-func (p *PeerDiscovery) Listen() (err error) {
-	p.listenerRecieved, err = listen(address)
-	return
 }
 
 const (
@@ -59,7 +95,12 @@ const (
 
 // Listen binds to the UDP address and port given and writes packets received
 // from that address to a buffer which is passed to a hander
-func listen(address string) (recievedBytes []byte, err error) {
+func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
+	p.RLock()
+	address := p.settings.MulticastAddress + ":" + p.settings.Port
+	currentIP := p.localIP
+	p.RUnlock()
+
 	// Parse the string address
 	addr, err := net.ResolveUDPAddr("udp", address)
 	if err != nil {
@@ -84,15 +125,26 @@ func listen(address string) (recievedBytes []byte, err error) {
 			return
 		}
 
-		if src.IP.String() == GetLocalIP() {
-			continue
-		}
-
 		log.Println(numBytes, "bytes read from", src)
 		log.Println(hex.Dump(buffer[:numBytes]))
 		log.Println(string(buffer))
-		recievedBytes = buffer[:numBytes]
-		break
+
+		if src.IP.String() == currentIP {
+			continue
+		}
+		if string(buffer[:numBytes]) == "ok" {
+			continue
+		}
+
+		p.Lock()
+		if _, ok := p.received[src.IP.String()]; !ok {
+			p.received[src.IP.String()] = buffer[:numBytes]
+		}
+		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
+			p.Unlock()
+			break
+		}
+		p.Unlock()
 	}
 
 	conn2, err := newBroadcast(address)

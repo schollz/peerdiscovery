@@ -3,6 +3,8 @@ package main
 import "github.com/schollz/peerdiscovery"
 
 func main() {
-	p := new(peerdiscovery.PeerDiscovery)
-	p.Broadcast()
+	p := peerdiscovery.New(peerdiscovery.Settings{
+		Limit: 1,
+	})
+	p.Discover()
 }
