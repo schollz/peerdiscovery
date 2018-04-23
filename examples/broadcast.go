@@ -19,7 +19,7 @@ func main() {
 		log.Fatal(err)
 	} else {
 		for _, d := range discoveries {
-			log.Printf("%s: %s", d.Address, d.Payload)
+			log.Printf("discovered ip '%s' with payload '%s'", d.Address, d.Payload)
 		}
 	}
 }
