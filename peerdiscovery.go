@@ -1,6 +1,7 @@
 package peerdiscovery
 
 import (
+	"encoding/hex"
 	"log"
 	"net"
 	"sync"
@@ -181,11 +182,16 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		buffer := make([]byte, maxDatagramSize)
 		log.Println("waiting to read")
 		n, cm, src, errRead := p2.ReadFrom(buffer)
-		log.Println(n, cm, src, err, buffer[:n])
+		log.Println(n, cm, src.Network(), err, buffer[:n])
 		if errRead != nil {
 			err = errRead
 			return
 		}
+		s
+		// if src.IP.String() == currentIP {
+		// 	continue
+		// }
+		log.Println(src, hex.Dump(buffer[:n]))
 
 		// if cm.Dst.IsMulticast() {
 		// 	if cm.Dst.Equal(group) {
