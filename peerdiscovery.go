@@ -163,11 +163,10 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			return
 		}
 
-		log.Println(hex.Dump(buffer[:numBytes]))
-
 		if src.IP.String() == currentIP {
 			continue
 		}
+		log.Println(src, hex.Dump(buffer[:numBytes]))
 		log.Println(numBytes, "bytes read from", src)
 
 		p.Lock()
