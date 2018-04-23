@@ -1,7 +1,6 @@
 package peerdiscovery
 
 import (
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -181,7 +180,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	if err != nil {
 		return
 	}
-	log.Println(ifaces)
+	// log.Println(ifaces)
 
 	// Open up a connection
 	c, err := net.ListenPacket("udp4", address)

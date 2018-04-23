@@ -1,7 +1,6 @@
 package peerdiscovery
 
 import (
-	"log"
 	math_rand "math/rand"
 	"net"
 	"strings"
@@ -36,7 +35,6 @@ func GetLocalIPs() (ips map[string]struct{}) {
 		return
 	}
 	for _, address := range addrs {
-		log.Println(address.String())
 		ips[strings.Split(address.String(), "/")[0]] = struct{}{}
 	}
 	return
