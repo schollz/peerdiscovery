@@ -9,10 +9,10 @@ import (
 
 func main() {
 	p := peerdiscovery.New(peerdiscovery.Settings{
-		Limit:     1,
+		Limit:     -1,
 		Payload:   []byte(peerdiscovery.RandStringBytesMaskImprSrc(10)),
-		Delay:     100 * time.Millisecond,
-		TimeLimit: 1000 * time.Second,
+		Delay:     1000 * time.Millisecond,
+		TimeLimit: 100000 * time.Second,
 	})
 	discoveries, err := p.Discover()
 	if err != nil {
