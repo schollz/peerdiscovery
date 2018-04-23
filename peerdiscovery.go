@@ -168,11 +168,11 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		log.Println(err)
 		return
 	}
-	if err = p2.JoinGroup(&ifaces[1], &net.UDPAddr{IP: group}); err != nil {
-		log.Println("JoinGroup")
-		log.Println(err)
-		return
-	}
+	// if err = p2.JoinGroup(&ifaces[1], &net.UDPAddr{IP: group}); err != nil {
+	// 	log.Println("JoinGroup")
+	// 	log.Println(err)
+	// 	return
+	// }
 
 	// Loop forever reading from the socket
 	for {
