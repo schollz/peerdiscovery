@@ -171,12 +171,6 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		}
 	}
 
-	// if err = p2.JoinGroup(&ifaces[1], &net.UDPAddr{IP: group}); err != nil {
-	// 	log.Println("JoinGroup")
-	// 	log.Println(err)
-	// 	return
-	// }
-
 	// Loop forever reading from the socket
 	for {
 		buffer := make([]byte, maxDatagramSize)
@@ -197,6 +191,17 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		// 	}
 		// }
 
+		dst := &net.UDPAddr{IP: group, Port: 9999}
+
+		for i := range ifaces {
+			if err := p2.SetMulticastInterface(&ifaces[i]); err != nil {
+				log.Println(err)
+			}
+			p2.SetMulticastTTL(2)
+			if _, err := p2.WriteTo([]byte("hi"), nil, dst); err != nil {
+				log.Println(err)
+			}
+		}
 		// p.Lock()
 		// if _, ok := p.received[src.IP.String()]; !ok {
 		// 	p.received[src.IP.String()] = buffer[:numBytes]
