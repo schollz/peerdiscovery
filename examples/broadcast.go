@@ -8,12 +8,15 @@ import (
 )
 
 func main() {
-	p := peerdiscovery.New(peerdiscovery.Settings{
+	p, err := peerdiscovery.New(peerdiscovery.Settings{
 		Limit:     -1,
 		Payload:   []byte(peerdiscovery.RandStringBytesMaskImprSrc(10)),
-		Delay:     1000 * time.Millisecond,
-		TimeLimit: 100000 * time.Second,
+		Delay:     500 * time.Millisecond,
+		TimeLimit: 10 * time.Second,
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	discoveries, err := p.Discover()
 	if err != nil {
 		log.Fatal(err)
