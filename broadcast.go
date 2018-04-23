@@ -5,25 +5,35 @@ import (
 	"log"
 	"net"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 var address = "239.0.0.0:9999"
 
-func Broadcast() (err error) {
-	conn, err := NewBroadcaster(address)
+type PeerDiscovery struct {
+	listenerRecieved      []byte
+	numClientsToDiscovery int
+}
+
+func (p *PeerDiscovery) Broadcast() {
+	conn, err := newBroadcast(address)
 	if err != nil {
 		return
 	}
-	go Listen()
+	go p.Listen()
 	for {
+		if len(p.listenerRecieved) > 0 {
+			break
+		}
 		conn.Write([]byte("hello, world"))
 		time.Sleep(1 * time.Second)
 	}
 	return
 }
 
-// NewBroadcaster creates a new UDP multicast connection on which to broadcast
-func NewBroadcaster(address string) (*net.UDPConn, error) {
+// newBroadcast creates a new UDP multicast connection on which to broadcast
+func newBroadcast(address string) (*net.UDPConn, error) {
 	addr, err := net.ResolveUDPAddr("udp", address)
 	if err != nil {
 		return nil, err
@@ -38,8 +48,8 @@ func NewBroadcaster(address string) (*net.UDPConn, error) {
 
 }
 
-func Listen() (err error) {
-	NewListener(address, msgHandler)
+func (p *PeerDiscovery) Listen() (err error) {
+	p.listenerRecieved, err = listen(address)
 	return
 }
 
@@ -47,37 +57,49 @@ const (
 	maxDatagramSize = 8192
 )
 
-func msgHandler(src *net.UDPAddr, n int, b []byte) {
-	log.Println(n, "bytes read from", src)
-	log.Println(hex.Dump(b[:n]))
-	log.Println(string(b))
-}
-
 // Listen binds to the UDP address and port given and writes packets received
 // from that address to a buffer which is passed to a hander
-func NewListener(address string, handler func(*net.UDPAddr, int, []byte)) {
+func listen(address string) (recievedBytes []byte, err error) {
 	// Parse the string address
 	addr, err := net.ResolveUDPAddr("udp", address)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 
 	// Open up a connection
 	conn, err := net.ListenMulticastUDP("udp", nil, addr)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
+	defer conn.Close()
 
 	conn.SetReadBuffer(maxDatagramSize)
 
 	// Loop forever reading from the socket
 	for {
 		buffer := make([]byte, maxDatagramSize)
-		numBytes, src, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			log.Fatal("ReadFromUDP failed:", err)
+		numBytes, src, err2 := conn.ReadFromUDP(buffer)
+		if err2 != nil {
+			err = errors.Wrap(err2, "could not read from udp")
+			return
 		}
 
-		handler(src, numBytes, buffer)
+		if src.IP.String() == GetLocalIP() {
+			continue
+		}
+
+		log.Println(numBytes, "bytes read from", src)
+		log.Println(hex.Dump(buffer[:numBytes]))
+		log.Println(string(buffer))
+		recievedBytes = buffer[:numBytes]
+		break
 	}
+
+	conn2, err := newBroadcast(address)
+	if err != nil {
+		return
+	}
+	defer conn2.Close()
+	conn2.Write([]byte("ok"))
+	return
 }

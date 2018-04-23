@@ -3,5 +3,6 @@ package main
 import "github.com/schollz/peerdiscovery"
 
 func main() {
-	peerdiscovery.Listen()
+	p := new(peerdiscovery.PeerDiscovery)
+	p.Listen()
 }
