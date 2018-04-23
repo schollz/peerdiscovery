@@ -181,7 +181,6 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	// Loop forever reading from the socket
 	for {
 		buffer := make([]byte, maxDatagramSize)
-		log.Println("waiting to read")
 		n, cm, src, errRead := p2.ReadFrom(buffer)
 		log.Println(n, cm, src.String(), err, buffer[:n])
 		if errRead != nil {
@@ -190,6 +189,9 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		}
 
 		if src.String()+":"+port == currentIP+":"+port {
+			continue
+		}
+		if src.String()+":"+port == "127.0.0.1:"+port {
 			continue
 		}
 		log.Println(src, hex.Dump(buffer[:n]))
