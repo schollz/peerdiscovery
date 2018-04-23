@@ -42,7 +42,7 @@ func New(settings ...Settings) (p *PeerDiscovery) {
 		p.settings.Port = "9999"
 	}
 	if p.settings.MulticastAddress == "" {
-		p.settings.MulticastAddress = "239.255.255.250"
+		p.settings.MulticastAddress = "224.0.0.250"
 	}
 	if len(p.settings.Payload) == 0 {
 		p.settings.Payload = []byte("hi")
