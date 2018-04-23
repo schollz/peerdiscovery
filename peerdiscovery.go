@@ -195,11 +195,11 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 
 		for i := range ifaces {
 			if err := p2.SetMulticastInterface(&ifaces[i]); err != nil {
-				log.Println(err)
+				continue
 			}
 			p2.SetMulticastTTL(2)
 			if _, err := p2.WriteTo([]byte("hi"), nil, dst); err != nil {
-				log.Println(err)
+				continue
 			}
 		}
 		// p.Lock()
