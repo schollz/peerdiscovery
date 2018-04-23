@@ -122,11 +122,11 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 		// write to multicast
 		dst := &net.UDPAddr{IP: group, Port: portNum}
 		for i := range ifaces {
-			if err := p2.SetMulticastInterface(&ifaces[i]); err != nil {
+			if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
 				continue
 			}
 			p2.SetMulticastTTL(2)
-			if _, err := p2.WriteTo([]byte(payload), nil, dst); err != nil {
+			if _, errMulticast := p2.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
 				continue
 			}
 		}
@@ -139,11 +139,11 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	// send out broadcast that is finished
 	dst := &net.UDPAddr{IP: group, Port: portNum}
 	for i := range ifaces {
-		if err := p2.SetMulticastInterface(&ifaces[i]); err != nil {
+		if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
 			continue
 		}
 		p2.SetMulticastTTL(2)
-		if _, err := p2.WriteTo([]byte(payload), nil, dst); err != nil {
+		if _, errMulticast := p2.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
 			continue
 		}
 	}
@@ -193,13 +193,10 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	group := net.IPv4(multicastAddressNumbers[0], multicastAddressNumbers[1], multicastAddressNumbers[2], multicastAddressNumbers[3])
 	p2 := ipv4.NewPacketConn(c)
 	for i := range ifaces {
-		if err = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); err != nil {
-			log.Println(ifaces[i], "JoinGroup1")
-			log.Println(err)
+		if errMulticast = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); errMulticast != nil {
 			continue
 		}
 	}
-	err = nil
 
 	// Loop forever reading from the socket
 	for {
