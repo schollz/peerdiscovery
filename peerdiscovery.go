@@ -42,7 +42,7 @@ func New(settings ...Settings) (p *PeerDiscovery) {
 		p.settings.Port = "9999"
 	}
 	if p.settings.MulticastAddress == "" {
-		p.settings.MulticastAddress = "224.0.0.250"
+		p.settings.MulticastAddress = "239.255.255.250"
 	}
 	if len(p.settings.Payload) == 0 {
 		p.settings.Payload = []byte("hi")
@@ -161,7 +161,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	}
 	defer c.Close()
 
-	group := net.IPv4(224, 0, 0, 250)
+	group := net.IPv4(239, 255, 255, 250)
 	p2 := ipv4.NewPacketConn(c)
 	for i := range ifaces {
 		if err = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group}); err != nil {
