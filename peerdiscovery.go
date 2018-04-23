@@ -198,6 +198,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	p2 := ipv4.NewPacketConn(c)
 	for i := range ifaces {
 		if errJoinGroup := p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); errJoinGroup != nil {
+			log.Print(errJoinGroup)
 			continue
 		}
 	}
