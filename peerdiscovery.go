@@ -187,7 +187,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			err = errRead
 			return
 		}
-		s
+
 		// if src.IP.String() == currentIP {
 		// 	continue
 		// }
