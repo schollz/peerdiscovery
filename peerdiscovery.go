@@ -69,27 +69,21 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	// get interfaces
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		log.Println("getting interfaces")
-		log.Println(err)
 		return
 	}
-	log.Println(ifaces)
 
 	// Open up a connection
-	c, err := net.ListenPacket("udp4", "239.255.255.250:9999")
+	c, err := net.ListenPacket("udp4", address)
 	if err != nil {
-		log.Println("getting interfaces")
-		log.Println(err)
 		return
 	}
 	defer c.Close()
 
 	group := net.IPv4(239, 255, 255, 250)
 	p2 := ipv4.NewPacketConn(c)
+
 	for i := range ifaces {
 		if err = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: 9999}); err != nil {
-			log.Println(ifaces[i], "JoinGroup1")
-			log.Println(err)
 			continue
 		}
 	}
@@ -111,7 +105,7 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 				continue
 			}
 			p2.SetMulticastTTL(2)
-			if _, err := p2.WriteTo([]byte("hi"), nil, dst); err != nil {
+			if _, err := p2.WriteTo([]byte(payload), nil, dst); err != nil {
 				continue
 			}
 		}
@@ -121,12 +115,6 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	}
 
 	// send out broadcast that is finished
-	conn2, err := newBroadcast(address)
-	if err != nil {
-		return
-	}
-	defer conn2.Close()
-	conn2.Write(payload)
 
 	p.Lock()
 	discoveries = make([]Discovered, len(p.received))
@@ -140,20 +128,6 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	}
 	p.Unlock()
 	return
-}
-
-// newBroadcast creates a new UDP multicast connection on which to broadcast
-func newBroadcast(address string) (*net.UDPConn, error) {
-	addr, err := net.ResolveUDPAddr("udp4", address)
-	if err != nil {
-		return nil, err
-	}
-	conn, err := net.DialUDP("udp4", nil, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
 }
 
 const (
@@ -207,7 +181,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		buffer := make([]byte, maxDatagramSize)
 		log.Println("waiting to read")
 		n, cm, src, errRead := p2.ReadFrom(buffer)
-		log.Println(n, cm, src, err)
+		log.Println(n, cm, src, err, buffer[:n])
 		if errRead != nil {
 			err = errRead
 			return
