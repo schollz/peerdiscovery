@@ -1,7 +1,6 @@
 package peerdiscovery
 
 import (
-	"encoding/hex"
 	"log"
 	"net"
 	"strconv"
@@ -185,7 +184,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	if err != nil {
 		return
 	}
-	log.Println(ifaces)
+	// log.Println(ifaces)
 
 	// Open up a connection
 	c, err := net.ListenPacket("udp4", address)
@@ -207,7 +206,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	for {
 		buffer := make([]byte, maxDatagramSize)
 		n, _, src, errRead := p2.ReadFrom(buffer)
-		log.Println(n, src.String(), err, buffer[:n])
+		// log.Println(n, src.String(), err, buffer[:n])
 		if errRead != nil {
 			err = errRead
 			return
@@ -217,7 +216,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			continue
 		}
 
-		log.Println(src, hex.Dump(buffer[:n]))
+		// log.Println(src, hex.Dump(buffer[:n]))
 
 		p.Lock()
 		if _, ok := p.received[strings.Split(src.String(), ":")[0]]; !ok {
