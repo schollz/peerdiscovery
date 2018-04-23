@@ -25,6 +25,25 @@ func GetLocalIP() string {
 	return bestIP
 }
 
+// GetLocalIPs returns the local ip address
+func GetLocalIPs() (ips map[string]struct{}) {
+	ips = make(map[string]struct{})
+	ips["localhost"] = struct{}{}
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return
+	}
+	for _, address := range addrs {
+		// check the address type and if it is not a loopback the display it
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil && (strings.Contains(ipnet.IP.String(), "192.168.1") || strings.Contains(ipnet.IP.String(), "192.168")) {
+				ips[ipnet.IP.String()] = struct{}{}
+			}
+		}
+	}
+	return
+}
+
 // src is seeds the random generator for generating random strings
 var src = math_rand.NewSource(time.Now().UnixNano())
 

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -141,8 +142,8 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	p.RLock()
 	address := p.settings.MulticastAddress + ":" + p.settings.Port
 	port := p.settings.Port
-	currentIP := p.localIP
 	p.RUnlock()
+	localIPs := GetLocalIPs()
 
 	// // Parse the string address
 	// addr, err := net.ResolveUDPAddr("udp", address)
@@ -189,12 +190,10 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			return
 		}
 
-		if src.String() == currentIP+":"+port {
+		if _, ok := localIPs[strings.Split(src.String(), ":")[0]]; ok {
 			continue
 		}
-		if src.String() == "127.0.0.1:"+port {
-			continue
-		}
+
 		log.Println(src, hex.Dump(buffer[:n]))
 
 		// if cm.Dst.IsMulticast() {
