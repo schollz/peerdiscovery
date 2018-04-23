@@ -185,14 +185,14 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			err = errRead
 			return
 		}
-		if cm.Dst.IsMulticast() {
-			if cm.Dst.Equal(group) {
-				// joined group, do something
-			} else {
-				// unknown group, discard
-				continue
-			}
-		}
+		// if cm.Dst.IsMulticast() {
+		// 	if cm.Dst.Equal(group) {
+		// 		// joined group, do something
+		// 	} else {
+		// 		// unknown group, discard
+		// 		continue
+		// 	}
+		// }
 
 		// p.Lock()
 		// if _, ok := p.received[src.IP.String()]; !ok {
