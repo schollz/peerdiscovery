@@ -1,7 +1,6 @@
 package peerdiscovery
 
 import (
-	"encoding/hex"
 	"log"
 	"net"
 	"strconv"
@@ -18,12 +17,14 @@ type Discovered struct {
 }
 
 type Settings struct {
-	Limit            int
-	Port             string
-	MulticastAddress string
-	Payload          []byte
-	Delay            time.Duration
-	TimeLimit        time.Duration
+	Limit                   int
+	Port                    string
+	portNum                 int
+	MulticastAddress        string
+	multicastAddressNumbers []uint8
+	Payload                 []byte
+	Delay                   time.Duration
+	TimeLimit               time.Duration
 }
 
 type PeerDiscovery struct {
@@ -33,7 +34,7 @@ type PeerDiscovery struct {
 	sync.RWMutex
 }
 
-func New(settings ...Settings) (p *PeerDiscovery) {
+func New(settings ...Settings) (p *PeerDiscovery, err error) {
 	p = new(PeerDiscovery)
 	p.Lock()
 	defer p.Unlock()
@@ -58,12 +59,27 @@ func New(settings ...Settings) (p *PeerDiscovery) {
 	}
 	p.localIP = GetLocalIP()
 	p.received = make(map[string][]byte)
+	p.settings.multicastAddressNumbers = []uint8{0, 0, 0, 0}
+	for i, num := range strings.Split(p.settings.MulticastAddress, ".") {
+		var nInt int
+		nInt, err = strconv.Atoi(num)
+		if err != nil {
+			return
+		}
+		p.settings.multicastAddressNumbers[i] = uint8(nInt)
+	}
+	p.settings.portNum, err = strconv.Atoi(p.settings.Port)
+	if err != nil {
+		return
+	}
 	return
 }
 
 func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	p.RLock()
 	address := p.settings.MulticastAddress + ":" + p.settings.Port
+	portNum := p.settings.portNum
+	multicastAddressNumbers := p.settings.multicastAddressNumbers
 	payload := p.settings.Payload
 	tickerDuration := p.settings.Delay
 	timeLimit := p.settings.TimeLimit
@@ -82,11 +98,11 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	}
 	defer c.Close()
 
-	group := net.IPv4(239, 255, 255, 250)
+	group := net.IPv4(multicastAddressNumbers[0], multicastAddressNumbers[1], multicastAddressNumbers[2], multicastAddressNumbers[3])
 	p2 := ipv4.NewPacketConn(c)
 
 	for i := range ifaces {
-		if err = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: 9999}); err != nil {
+		if err = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); err != nil {
 			continue
 		}
 	}
@@ -102,7 +118,9 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 			exit = true
 		}
 		p.Unlock()
-		dst := &net.UDPAddr{IP: group, Port: 9999}
+
+		// write to multicast
+		dst := &net.UDPAddr{IP: group, Port: portNum}
 		for i := range ifaces {
 			if err := p2.SetMulticastInterface(&ifaces[i]); err != nil {
 				continue
@@ -112,12 +130,23 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 				continue
 			}
 		}
+
 		if exit || t.Sub(start) > timeLimit {
 			break
 		}
 	}
 
 	// send out broadcast that is finished
+	dst := &net.UDPAddr{IP: group, Port: portNum}
+	for i := range ifaces {
+		if err := p2.SetMulticastInterface(&ifaces[i]); err != nil {
+			continue
+		}
+		p2.SetMulticastTTL(2)
+		if _, err := p2.WriteTo([]byte(payload), nil, dst); err != nil {
+			continue
+		}
+	}
 
 	p.Lock()
 	discoveries = make([]Discovered, len(p.received))
@@ -142,21 +171,14 @@ const (
 func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	p.RLock()
 	address := p.settings.MulticastAddress + ":" + p.settings.Port
-	portNum, _ := strconv.Atoi(p.settings.Port)
+	portNum := p.settings.portNum
+	multicastAddressNumbers := p.settings.multicastAddressNumbers
 	p.RUnlock()
 	localIPs := GetLocalIPs()
-
-	// // Parse the string address
-	// addr, err := net.ResolveUDPAddr("udp", address)
-	// if err != nil {
-	// 	return
-	// }
 
 	// get interfaces
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		log.Println("getting interfaces")
-		log.Println(err)
 		return
 	}
 	log.Println(ifaces)
@@ -164,13 +186,11 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	// Open up a connection
 	c, err := net.ListenPacket("udp4", address)
 	if err != nil {
-		log.Println("getting interfaces")
-		log.Println(err)
 		return
 	}
 	defer c.Close()
 
-	group := net.IPv4(239, 255, 255, 250)
+	group := net.IPv4(multicastAddressNumbers[0], multicastAddressNumbers[1], multicastAddressNumbers[2], multicastAddressNumbers[3])
 	p2 := ipv4.NewPacketConn(c)
 	for i := range ifaces {
 		if err = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); err != nil {
@@ -184,8 +204,8 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	// Loop forever reading from the socket
 	for {
 		buffer := make([]byte, maxDatagramSize)
-		n, cm, src, errRead := p2.ReadFrom(buffer)
-		log.Println(n, cm, src.String(), err, buffer[:n])
+		n, _, src, errRead := p2.ReadFrom(buffer)
+		// log.Println(n, cm, src.String(), err, buffer[:n])
 		if errRead != nil {
 			err = errRead
 			return
@@ -195,26 +215,17 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			continue
 		}
 
-		log.Println(src, hex.Dump(buffer[:n]))
+		// log.Println(src, hex.Dump(buffer[:n]))
 
-		// if cm.Dst.IsMulticast() {
-		// 	if cm.Dst.Equal(group) {
-		// 		// joined group, do something
-		// 	} else {
-		// 		// unknown group, discard
-		// 		continue
-		// 	}
-		// }
-
-		// p.Lock()
-		// if _, ok := p.received[src.IP.String()]; !ok {
-		// 	p.received[src.IP.String()] = buffer[:numBytes]
-		// }
-		// if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
-		// 	p.Unlock()
-		// 	break
-		// }
-		// p.Unlock()
+		p.Lock()
+		if _, ok := p.received[strings.Split(src.String(), ":")[0]]; !ok {
+			p.received[strings.Split(src.String(), ":")[0]] = buffer[:n]
+		}
+		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
+			p.Unlock()
+			break
+		}
+		p.Unlock()
 	}
 
 	return
