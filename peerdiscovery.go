@@ -1,13 +1,12 @@
 package peerdiscovery
 
 import (
-	"encoding/hex"
 	"log"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
+	"golang.org/x/net/ipv4"
 )
 
 type Discovered struct {
@@ -134,50 +133,76 @@ const (
 // Listen binds to the UDP address and port given and writes packets received
 // from that address to a buffer which is passed to a hander
 func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
-	p.RLock()
-	address := p.settings.MulticastAddress + ":" + p.settings.Port
-	currentIP := p.localIP
-	p.RUnlock()
+	// p.RLock()
+	// address := p.settings.MulticastAddress + ":" + p.settings.Port
+	// currentIP := p.localIP
+	// p.RUnlock()
 
-	// Parse the string address
-	addr, err := net.ResolveUDPAddr("udp", address)
+	// // Parse the string address
+	// addr, err := net.ResolveUDPAddr("udp", address)
+	// if err != nil {
+	// 	return
+	// }
+
+	// get interfaces
+	ifaces, err := net.Interfaces()
 	if err != nil {
+		log.Println("getting interfaces")
+		log.Println(err)
 		return
 	}
+	log.Println(ifaces)
 
 	// Open up a connection
-	conn, err := net.ListenMulticastUDP("udp", nil, addr)
+	c, err := net.ListenPacket("udp4", "0.0.0.0:9999")
 	if err != nil {
+		log.Println("getting interfaces")
+		log.Println(err)
 		return
 	}
-	defer conn.Close()
+	defer c.Close()
 
-	conn.SetReadBuffer(maxDatagramSize)
+	group := net.IPv4(224, 0, 0, 250)
+	p2 := ipv4.NewPacketConn(c)
+	if err = p2.JoinGroup(&ifaces[0], &net.UDPAddr{IP: group}); err != nil {
+		log.Println("JoinGroup1")
+		log.Println(err)
+		return
+	}
+	if err = p2.JoinGroup(&ifaces[1], &net.UDPAddr{IP: group}); err != nil {
+		log.Println("JoinGroup")
+		log.Println(err)
+		return
+	}
 
 	// Loop forever reading from the socket
 	for {
 		buffer := make([]byte, maxDatagramSize)
-		numBytes, src, err2 := conn.ReadFromUDP(buffer)
-		if err2 != nil {
-			err = errors.Wrap(err2, "could not read from udp")
+		log.Println("waiting to read")
+		n, cm, src, errRead := p2.ReadFrom(buffer)
+		log.Println(n, cm, src, err)
+		if errRead != nil {
+			err = errRead
 			return
 		}
+		if cm.Dst.IsMulticast() {
+			if cm.Dst.Equal(group) {
+				// joined group, do something
+			} else {
+				// unknown group, discard
+				continue
+			}
+		}
 
-		if src.IP.String() == currentIP {
-			continue
-		}
-		log.Println(src, hex.Dump(buffer[:numBytes]))
-		log.Println(numBytes, "bytes read from", src)
-
-		p.Lock()
-		if _, ok := p.received[src.IP.String()]; !ok {
-			p.received[src.IP.String()] = buffer[:numBytes]
-		}
-		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
-			p.Unlock()
-			break
-		}
-		p.Unlock()
+		// p.Lock()
+		// if _, ok := p.received[src.IP.String()]; !ok {
+		// 	p.received[src.IP.String()] = buffer[:numBytes]
+		// }
+		// if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
+		// 	p.Unlock()
+		// 	break
+		// }
+		// p.Unlock()
 	}
 
 	return
