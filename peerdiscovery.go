@@ -1,8 +1,6 @@
 package peerdiscovery
 
 import (
-	"encoding/hex"
-	"log"
 	"net"
 	"sync"
 	"time"
@@ -12,11 +10,18 @@ import (
 
 var address = "239.0.0.0:9999"
 
+type Discovered struct {
+	Address string
+	Payload []byte
+}
+
 type Settings struct {
 	Limit            int
 	Port             string
 	MulticastAddress string
 	Payload          []byte
+	Delay            time.Duration
+	TimeLimit        time.Duration
 }
 
 type PeerDiscovery struct {
@@ -43,22 +48,33 @@ func New(settings ...Settings) (p *PeerDiscovery) {
 	if len(p.settings.Payload) == 0 {
 		p.settings.Payload = []byte("hi")
 	}
+	if p.settings.Delay == time.Duration(0) {
+		p.settings.Delay = 1 * time.Second
+	}
+	if p.settings.TimeLimit == time.Duration(0) {
+		p.settings.TimeLimit = 10 * time.Second
+	}
 	p.localIP = GetLocalIP()
 	p.received = make(map[string][]byte)
-	log.Println(p.settings)
 	return
 }
 
-func (p *PeerDiscovery) Discover() {
+func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	p.RLock()
 	conn, err := newBroadcast(p.settings.MulticastAddress + ":" + p.settings.Port)
 	payload := p.settings.Payload
+	tickerDuration := p.settings.Delay
 	p.RUnlock()
 	if err != nil {
 		return
 	}
+	defer conn.Close()
+
 	go p.listen()
-	for {
+	ticker := time.NewTicker(tickerDuration)
+	defer ticker.Stop()
+	start := time.Now()
+	for t := range ticker.C {
 		exit := false
 		p.Lock()
 		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
@@ -66,11 +82,21 @@ func (p *PeerDiscovery) Discover() {
 		}
 		p.Unlock()
 		conn.Write(payload)
-		time.Sleep(1 * time.Second)
-		if exit {
+		if exit || t.Sub(start) > 10*time.Second {
 			break
 		}
 	}
+	p.Lock()
+	discoveries = make([]Discovered, len(p.received))
+	i := 0
+	for ip := range p.received {
+		discoveries[i] = Discovered{
+			Address: ip,
+			Payload: p.received[ip],
+		}
+		i++
+	}
+	p.Unlock()
 	return
 }
 
@@ -125,9 +151,9 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			return
 		}
 
-		log.Println(numBytes, "bytes read from", src)
-		log.Println(hex.Dump(buffer[:numBytes]))
-		log.Println(string(buffer))
+		// log.Println(numBytes, "bytes read from", src)
+		// log.Println(hex.Dump(buffer[:numBytes]))
+		// log.Println(string(buffer))
 
 		if src.IP.String() == currentIP {
 			continue
