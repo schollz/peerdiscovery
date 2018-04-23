@@ -102,7 +102,7 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	p2 := ipv4.NewPacketConn(c)
 
 	for i := range ifaces {
-		if err = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); err != nil {
+		if errJoinGroup := p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); errJoinGroup != nil {
 			continue
 		}
 	}
@@ -193,7 +193,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	group := net.IPv4(multicastAddressNumbers[0], multicastAddressNumbers[1], multicastAddressNumbers[2], multicastAddressNumbers[3])
 	p2 := ipv4.NewPacketConn(c)
 	for i := range ifaces {
-		if errMulticast := p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); errMulticast != nil {
+		if errJoinGroup := p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); errJoinGroup != nil {
 			continue
 		}
 	}
