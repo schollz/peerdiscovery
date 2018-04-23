@@ -203,7 +203,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	for {
 		buffer := make([]byte, maxDatagramSize)
 		n, _, src, errRead := p2.ReadFrom(buffer)
-		log.Println(n, cm, src.String(), err, buffer[:n])
+		log.Println(n, src.String(), err, buffer[:n])
 		if errRead != nil {
 			err = errRead
 			return
