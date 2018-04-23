@@ -153,7 +153,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	log.Println(ifaces)
 
 	// Open up a connection
-	c, err := net.ListenPacket("udp4", "0.0.0.0:9999")
+	c, err := net.ListenPacket("udp4", "239.255.255.250:9999")
 	if err != nil {
 		log.Println("getting interfaces")
 		log.Println(err)
@@ -188,7 +188,6 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			return
 		}
 
-		p2.WriteTo([]byte("hi"), nil, src)
 		// if cm.Dst.IsMulticast() {
 		// 	if cm.Dst.Equal(group) {
 		// 		// joined group, do something
