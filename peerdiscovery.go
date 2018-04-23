@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -141,7 +142,7 @@ const (
 func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	p.RLock()
 	address := p.settings.MulticastAddress + ":" + p.settings.Port
-	port := p.settings.Port
+	portNum, _ := strconv.Atoi(p.settings.Port)
 	p.RUnlock()
 	localIPs := GetLocalIPs()
 
@@ -172,7 +173,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	group := net.IPv4(239, 255, 255, 250)
 	p2 := ipv4.NewPacketConn(c)
 	for i := range ifaces {
-		if err = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: 9999}); err != nil {
+		if err = p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); err != nil {
 			log.Println(ifaces[i], "JoinGroup1")
 			log.Println(err)
 			continue
