@@ -9,10 +9,10 @@ import (
 
 func main() {
 	p, err := peerdiscovery.New(peerdiscovery.Settings{
-		Limit:     1,
+		Limit:     -1,
 		Payload:   []byte(peerdiscovery.RandStringBytesMaskImprSrc(10)),
-		Delay:     1000 * time.Millisecond,
-		TimeLimit: 100000 * time.Second,
+		Delay:     500 * time.Millisecond,
+		TimeLimit: 10000 * time.Second,
 	})
 	if err != nil {
 		log.Fatal(err)
