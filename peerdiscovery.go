@@ -1,7 +1,6 @@
 package peerdiscovery
 
 import (
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -103,7 +102,7 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 
 	for i := range ifaces {
 		if errJoinGroup := p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); errJoinGroup != nil {
-			log.Print(errJoinGroup)
+			// log.Print(errJoinGroup)
 			continue
 		}
 	}
@@ -124,12 +123,12 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 		dst := &net.UDPAddr{IP: group, Port: portNum}
 		for i := range ifaces {
 			if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
-				log.Print(errMulticast)
+				// log.Print(errMulticast)
 				continue
 			}
 			p2.SetMulticastTTL(2)
 			if _, errMulticast := p2.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
-				log.Print(errMulticast)
+				// log.Print(errMulticast)
 				continue
 			}
 		}
@@ -197,7 +196,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	p2 := ipv4.NewPacketConn(c)
 	for i := range ifaces {
 		if errJoinGroup := p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum}); errJoinGroup != nil {
-			log.Print(errJoinGroup)
+			// log.Print(errJoinGroup)
 			continue
 		}
 	}
