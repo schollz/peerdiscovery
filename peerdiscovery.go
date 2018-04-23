@@ -61,10 +61,12 @@ func New(settings ...Settings) (p *PeerDiscovery) {
 
 func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 	p.RLock()
-	conn, err := newBroadcast(p.settings.MulticastAddress + ":" + p.settings.Port)
+	address := p.settings.MulticastAddress + ":" + p.settings.Port
 	payload := p.settings.Payload
 	tickerDuration := p.settings.Delay
 	p.RUnlock()
+
+	conn, err := newBroadcast(address)
 	if err != nil {
 		return
 	}
@@ -86,6 +88,15 @@ func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
 			break
 		}
 	}
+
+	// send out broadcast that is finished
+	conn2, err := newBroadcast(address)
+	if err != nil {
+		return
+	}
+	defer conn2.Close()
+	conn2.Write(payload)
+
 	p.Lock()
 	discoveries = make([]Discovered, len(p.received))
 	i := 0
@@ -158,9 +169,6 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		if src.IP.String() == currentIP {
 			continue
 		}
-		if string(buffer[:numBytes]) == "ok" {
-			continue
-		}
 
 		p.Lock()
 		if _, ok := p.received[src.IP.String()]; !ok {
@@ -173,11 +181,5 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		p.Unlock()
 	}
 
-	conn2, err := newBroadcast(address)
-	if err != nil {
-		return
-	}
-	defer conn2.Close()
-	conn2.Write([]byte("ok"))
 	return
 }
