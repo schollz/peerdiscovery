@@ -187,6 +187,8 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			err = errRead
 			return
 		}
+
+		p2.WriteTo([]byte("hi"), nil, src)
 		// if cm.Dst.IsMulticast() {
 		// 	if cm.Dst.Equal(group) {
 		// 		// joined group, do something
