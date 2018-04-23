@@ -12,7 +12,7 @@ func main() {
 		Limit:     -1,
 		Payload:   []byte(peerdiscovery.RandStringBytesMaskImprSrc(10)),
 		Delay:     500 * time.Millisecond,
-		TimeLimit: 10000 * time.Second,
+		TimeLimit: 10 * time.Second,
 	})
 	if err != nil {
 		log.Fatal(err)
