@@ -29,6 +29,7 @@ func GetLocalIP() string {
 func GetLocalIPs() (ips map[string]struct{}) {
 	ips = make(map[string]struct{})
 	ips["localhost"] = struct{}{}
+	ips["127.0.0.1"] = struct{}{}
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return
