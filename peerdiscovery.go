@@ -138,10 +138,11 @@ const (
 // Listen binds to the UDP address and port given and writes packets received
 // from that address to a buffer which is passed to a hander
 func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
-	// p.RLock()
-	// address := p.settings.MulticastAddress + ":" + p.settings.Port
-	// currentIP := p.localIP
-	// p.RUnlock()
+	p.RLock()
+	address := p.settings.MulticastAddress + ":" + p.settings.Port
+	port := p.settings.Port
+	currentIP := p.localIP
+	p.RUnlock()
 
 	// // Parse the string address
 	// addr, err := net.ResolveUDPAddr("udp", address)
@@ -159,7 +160,7 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 	log.Println(ifaces)
 
 	// Open up a connection
-	c, err := net.ListenPacket("udp4", "239.255.255.250:9999")
+	c, err := net.ListenPacket("udp4", address)
 	if err != nil {
 		log.Println("getting interfaces")
 		log.Println(err)
@@ -182,15 +183,15 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		buffer := make([]byte, maxDatagramSize)
 		log.Println("waiting to read")
 		n, cm, src, errRead := p2.ReadFrom(buffer)
-		log.Println(n, cm, src.Network(), err, buffer[:n])
+		log.Println(n, cm, src.String(), err, buffer[:n])
 		if errRead != nil {
 			err = errRead
 			return
 		}
 
-		// if src.IP.String() == currentIP {
-		// 	continue
-		// }
+		if src.String()+":"+port == currentIP+":"+port {
+			continue
+		}
 		log.Println(src, hex.Dump(buffer[:n]))
 
 		// if cm.Dst.IsMulticast() {
