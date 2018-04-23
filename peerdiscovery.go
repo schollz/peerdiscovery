@@ -1,14 +1,14 @@
 package peerdiscovery
 
 import (
+	"encoding/hex"
+	"log"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 )
-
-var address = "239.0.0.0:9999"
 
 type Discovered struct {
 	Address string
@@ -43,7 +43,7 @@ func New(settings ...Settings) (p *PeerDiscovery) {
 		p.settings.Port = "9999"
 	}
 	if p.settings.MulticastAddress == "" {
-		p.settings.MulticastAddress = "239.0.0.0"
+		p.settings.MulticastAddress = "239.255.255.250"
 	}
 	if len(p.settings.Payload) == 0 {
 		p.settings.Payload = []byte("hi")
@@ -163,13 +163,12 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 			return
 		}
 
-		// log.Println(hex.Dump(buffer[:numBytes]))
-		// log.Println(string(buffer))
+		log.Println(hex.Dump(buffer[:numBytes]))
 
 		if src.IP.String() == currentIP {
 			continue
 		}
-		// log.Println(numBytes, "bytes read from", src)
+		log.Println(numBytes, "bytes read from", src)
 
 		p.Lock()
 		if _, ok := p.received[src.IP.String()]; !ok {
