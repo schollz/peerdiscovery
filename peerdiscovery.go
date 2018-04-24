@@ -26,11 +26,12 @@ type Settings struct {
 	// Limit is the number of peers to discover, use < 1 for unlimited.
 	Limit int
 	// Port is the port to broadcast on (the peers must also broadcast using the same port).
-	// The default port is 999.
+	// The default port is 9999.
 	Port string
 	// MulticastAddress specifies the multicast address.
 	// You should be able to use any between 224.0.0.0 to 239.255.255.255.
-	// By default it uses the Simple Service Discovery Protocol address (239.255.255.250).
+	// By default it uses the Simple Service Discovery Protocol
+	// address (239.255.255.250).
 	MulticastAddress string
 	// Payload is the bytes that are sent out with each broadcast. Must be short.
 	Payload []byte
