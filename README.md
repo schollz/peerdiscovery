@@ -5,9 +5,8 @@
 [![coverage](https://img.shields.io/badge/coverage-83%25-brightgreen.svg)](https://gocover.io/github.com/schollz/peerdiscovery)
 [![godocs](https://godoc.org/github.com/schollz/peerdiscovery?status.svg)](https://godoc.org/github.com/schollz/peerdiscovery) 
 
-Local peer discovery using UDP broadcast. I needed a peerdiscovery for [croc](https://github.com/schollz/croc) and everything I tried had problems, so I made another one.
+Pure-go library for cross-platform thread-safe local peer discovery using UDP broadcast. I needed a peer discovery for [croc](https://github.com/schollz/croc) and everything I tried had problems, so I made another one.
 
-![Example of peer discovery]()
 
 ## Install
 
@@ -19,20 +18,27 @@ go get -u github.com/schollz/peerdiscovery
 
 ## Usage 
 
-**Basic usage:**
+The following is a code to find the first peer on the local network and print it out.
 
 ```golang
-p, _ := peerdiscovery.New()
-discoveries, err := p.Discover()
-if err != nil {
-    panic(err)
-}
-for i, d := range discoveries {
-    fmt.Printf("discovered '%s' with payload '%s'\n", i, d.Address, d.Payload)
+p, _ := peerdiscovery.New(peerdiscovery.Settings{Limit: 1})
+discoveries, _ := p.Discover()
+for _, d := range discoveries {
+    fmt.Printf("discovered '%s'\n", d.Address)
 }
 ```
 
-See the docs for more usage.
+Here's the output when running on two computers. (*Run these gifs in sync by hitting Ctl + F5*).
+
+**Computer 1:**
+
+![computer 1](https://user-images.githubusercontent.com/6550035/39165714-ba7167d8-473a-11e8-82b5-fb7401ce2138.gif)
+
+**Computer 2:**
+
+![computer 1](https://user-images.githubusercontent.com/6550035/39165716-ba8db9ec-473a-11e8-96f7-e8c64faac676.gif)
+
+For more examples, see [the scanning example](https://github.com/schollz/peerdiscovery/blob/master/examples/main.go) or [the docs](https://godoc.org/github.com/schollz/peerdiscovery).
 
 
 ## Contributing
