@@ -14,7 +14,9 @@ import (
 // which holds their local address (port removed) and
 // a payload if there is one.
 type Discovered struct {
+	// Address is the local address of a discovered peer.
 	Address string
+	// Payload is the associated payload from discovered peer.
 	Payload []byte
 }
 
