@@ -5,7 +5,7 @@
 [![coverage](https://img.shields.io/badge/coverage-76%25-brightgreen.svg)](https://gocover.io/github.com/schollz/peerdiscovery)
 [![godocs](https://godoc.org/github.com/schollz/peerdiscovery?status.svg)](https://godoc.org/github.com/schollz/peerdiscovery) 
 
-Pure-go library for cross-platform thread-safe local peer discovery using UDP broadcast. I needed a peer discovery for [croc](https://github.com/schollz/croc) and everything I tried had problems, so I made another one.
+Pure-go library for cross-platform thread-safe local peer discovery using UDP broadcast. I needed to use peer discovery for [croc](https://github.com/schollz/croc) and everything I tried had problems, so I made another one.
 
 
 ## Install
