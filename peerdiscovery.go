@@ -44,23 +44,25 @@ type Settings struct {
 	multicastAddressNumbers []uint8
 }
 
-// PeerDiscovery is the object that can do the discovery for finding LAN peers.
-type PeerDiscovery struct {
+// peerDiscovery is the object that can do the discovery for finding LAN peers.
+type peerDiscovery struct {
 	settings Settings
+
 	received map[string][]byte
 	sync.RWMutex
 }
 
-// New returns a new PeerDiscovery object which can be used to discover peers.
+// initialize returns a new peerDiscovery object which can be used to discover peers.
 // The settings are optional. If any setting is not supplied, then defaults are used.
 // See the Settings for more information.
-func New(settings ...Settings) (p *PeerDiscovery, err error) {
-	p = new(PeerDiscovery)
+func initialize(settings Settings) (p *peerDiscovery, err error) {
+	p = new(peerDiscovery)
 	p.Lock()
 	defer p.Unlock()
-	if len(settings) > 0 {
-		p.settings = settings[0]
-	}
+
+	// initialize settings
+	p.settings = settings
+
 	// defaults
 	if p.settings.Port == "" {
 		p.settings.Port = "9999"
@@ -97,7 +99,16 @@ func New(settings ...Settings) (p *PeerDiscovery, err error) {
 // Discover will use the created settings to scan for LAN peers. It will return
 // an array of the discovered peers and their associate payloads. It will not
 // return broadcasts sent to itself.
-func (p *PeerDiscovery) Discover() (discoveries []Discovered, err error) {
+func Discover(settings ...Settings) (discoveries []Discovered, err error) {
+	s := Settings{}
+	if len(settings) > 0 {
+		s = settings[0]
+	}
+	p, err := initialize(s)
+	if err != nil {
+		return
+	}
+
 	p.RLock()
 	address := p.settings.MulticastAddress + ":" + p.settings.Port
 	portNum := p.settings.portNum
@@ -193,7 +204,7 @@ const (
 
 // Listen binds to the UDP address and port given and writes packets received
 // from that address to a buffer which is passed to a hander
-func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
+func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 	p.RLock()
 	address := p.settings.MulticastAddress + ":" + p.settings.Port
 	portNum := p.settings.portNum
