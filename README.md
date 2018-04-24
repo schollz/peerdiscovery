@@ -11,6 +11,8 @@ Local peer discovery using UDP broadcast. I needed a peerdiscovery for [croc](ht
 
 ## Install
 
+Make sure you have Go 1.5+.
+
 ```
 go get -u github.com/schollz/peerdiscovery
 ```
