@@ -200,7 +200,8 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 }
 
 const (
-	maxDatagramSize = 8192
+	// https://en.wikipedia.org/wiki/User_Datagram_Protocol#Packet_structure
+	maxDatagramSize = 66507
 )
 
 // Listen binds to the UDP address and port given and writes packets received
