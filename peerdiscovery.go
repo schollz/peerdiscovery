@@ -40,6 +40,8 @@ type Settings struct {
 	// TimeLimit is the amount of time to spend discovering, if the limit is not reached.
 	// The default time limit is 10 seconds.
 	TimeLimit time.Duration
+	// AllowSelf will allow discovery the local machine (default false)
+	AllowSelf bool
 
 	portNum                 int
 	multicastAddressNumbers []uint8
@@ -211,6 +213,7 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 	address := p.settings.MulticastAddress + ":" + p.settings.Port
 	portNum := p.settings.portNum
 	multicastAddressNumbers := p.settings.multicastAddressNumbers
+	allowSelf := p.settings.AllowSelf
 	p.RUnlock()
 	localIPs := getLocalIPs()
 
@@ -247,7 +250,7 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 			return
 		}
 
-		if _, ok := localIPs[strings.Split(src.String(), ":")[0]]; ok {
+		if _, ok := localIPs[strings.Split(src.String(), ":")[0]]; ok && !allowSelf {
 			continue
 		}
 
