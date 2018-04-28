@@ -76,10 +76,10 @@ func initialize(settings Settings) (p *peerDiscovery, err error) {
 	if len(p.settings.Payload) == 0 {
 		p.settings.Payload = []byte("hi")
 	}
-	if p.settings.Delay == time.Duration(0) {
+	if p.settings.Delay == 0 {
 		p.settings.Delay = 1 * time.Second
 	}
-	if p.settings.TimeLimit == time.Duration(0) {
+	if p.settings.TimeLimit == 0 {
 		p.settings.TimeLimit = 10 * time.Second
 	}
 	p.received = make(map[string][]byte)
@@ -150,11 +150,11 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	start := time.Now()
 	for t := range ticker.C {
 		exit := false
-		p.Lock()
+		p.RLock()
 		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
 			exit = true
 		}
-		p.Unlock()
+		p.RUnlock()
 
 		// write to multicast
 		dst := &net.UDPAddr{IP: group, Port: portNum}
@@ -187,17 +187,17 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 		}
 	}
 
-	p.Lock()
 	discoveries = make([]Discovered, len(p.received))
 	i := 0
-	for ip := range p.received {
+	p.RLock()
+	for ip, payload := range p.received {
 		discoveries[i] = Discovered{
 			Address: ip,
-			Payload: p.received[ip],
+			Payload: payload,
 		}
 		i++
 	}
-	p.Unlock()
+	p.RUnlock()
 	return
 }
 
@@ -256,15 +256,18 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 
 		// log.Println(src, hex.Dump(buffer[:n]))
 
+		ip := strings.Split(src.String(), ":")[0]
 		p.Lock()
-		if _, ok := p.received[strings.Split(src.String(), ":")[0]]; !ok {
-			p.received[strings.Split(src.String(), ":")[0]] = buffer[:n]
-		}
-		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
-			p.Unlock()
-			break
+		if _, ok := p.received[ip]; !ok {
+			p.received[ip] = buffer[:n]
 		}
 		p.Unlock()
+		p.RLock()
+		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
+			p.RUnlock()
+			break
+		}
+		p.RUnlock()
 	}
 
 	return
