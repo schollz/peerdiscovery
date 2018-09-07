@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/schollz/peerdiscovery"
-	"github.com/schollz/progressbar"
+	"github.com/schollz/progressbar/v2"
 )
 
 func main() {
