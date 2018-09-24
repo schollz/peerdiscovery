@@ -24,3 +24,26 @@ func TestDiscovery(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotZero(t, len(discoveries))
 }
+
+func TestDiscoverySelf(t *testing.T) {
+	// broadcast self to self
+	go func() {
+		_, err := Discover(Settings{
+			Limit:     -1,
+			Payload:   []byte("payload"),
+			Delay:     10 * time.Millisecond,
+			TimeLimit: 1 * time.Second,
+		})
+		assert.Nil(t, err)
+	}()
+	discoveries, err := Discover(Settings{
+		Limit:            1,
+		Payload:          []byte("payload"),
+		Delay:            500 * time.Millisecond,
+		TimeLimit:        1 * time.Second,
+		DisableBroadcast: true,
+		AllowSelf:        true,
+	})
+	assert.Nil(t, err)
+	assert.NotZero(t, len(discoveries))
+}

@@ -42,6 +42,8 @@ type Settings struct {
 	TimeLimit time.Duration
 	// AllowSelf will allow discovery the local machine (default false)
 	AllowSelf bool
+	// DisableBroadcast will not allow sending out a broadcast
+	DisableBroadcast bool
 
 	portNum                 int
 	multicastAddressNumbers []uint8
@@ -156,17 +158,19 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 		}
 		p.RUnlock()
 
-		// write to multicast
-		dst := &net.UDPAddr{IP: group, Port: portNum}
-		for i := range ifaces {
-			if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
-				// log.Print(errMulticast)
-				continue
-			}
-			p2.SetMulticastTTL(2)
-			if _, errMulticast := p2.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
-				// log.Print(errMulticast)
-				continue
+		if !s.DisableBroadcast {
+			// write to multicast
+			dst := &net.UDPAddr{IP: group, Port: portNum}
+			for i := range ifaces {
+				if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
+					// log.Print(errMulticast)
+					continue
+				}
+				p2.SetMulticastTTL(2)
+				if _, errMulticast := p2.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
+					// log.Print(errMulticast)
+					continue
+				}
 			}
 		}
 
@@ -175,15 +179,17 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 		}
 	}
 
-	// send out broadcast that is finished
-	dst := &net.UDPAddr{IP: group, Port: portNum}
-	for i := range ifaces {
-		if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
-			continue
-		}
-		p2.SetMulticastTTL(2)
-		if _, errMulticast := p2.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
-			continue
+	if !s.DisableBroadcast {
+		// send out broadcast that is finished
+		dst := &net.UDPAddr{IP: group, Port: portNum}
+		for i := range ifaces {
+			if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
+				continue
+			}
+			p2.SetMulticastTTL(2)
+			if _, errMulticast := p2.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
+				continue
+			}
 		}
 	}
 
