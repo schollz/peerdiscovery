@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -364,12 +363,28 @@ func getLocalIPs() (ips map[string]struct{}) {
 	ips["localhost"] = struct{}{}
 	ips["127.0.0.1"] = struct{}{}
 	ips["::1"] = struct{}{}
-	addrs, err := net.InterfaceAddrs()
+
+	ifaces, err := net.Interfaces()
 	if err != nil {
 		return
 	}
-	for _, address := range addrs {
-		ips[strings.Split(address.String(), "/")[0]] = struct{}{}
+
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, address := range addrs {
+			ip, _, err := net.ParseCIDR(address.String())
+			if err != nil {
+				// log.Printf("Failed to parse %s: %v", address.String(), err)
+				continue
+			}
+
+			ips[ip.String()+"%"+iface.Name] = struct{}{}
+			ips[ip.String()] = struct{}{}
+		}
 	}
 	return
 }
