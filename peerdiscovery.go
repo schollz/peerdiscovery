@@ -130,10 +130,7 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	}
 
 	p.RLock()
-	address := p.settings.MulticastAddress + ":" + p.settings.Port
-	if p.settings.IPVersion == IPv6 {
-		address = "[" + p.settings.MulticastAddress + "]:" + p.settings.Port
-	}
+	address := net.JoinHostPort(p.settings.MulticastAddress, p.settings.Port)
 	portNum := p.settings.portNum
 	payload := p.settings.Payload
 	tickerDuration := p.settings.Delay
@@ -147,11 +144,7 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	}
 
 	// Open up a connection
-	network := "udp4"
-	if p.settings.IPVersion == IPv6 {
-		network = "udp6"
-	}
-	c, err := net.ListenPacket(network, address)
+	c, err := net.ListenPacket(fmt.Sprintf("udp%d", p.settings.IPVersion), address)
 	if err != nil {
 		return
 	}
@@ -271,10 +264,7 @@ const (
 // from that address to a buffer which is passed to a hander
 func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 	p.RLock()
-	address := p.settings.MulticastAddress + ":" + p.settings.Port
-	if p.settings.IPVersion == IPv6 {
-		address = "[" + p.settings.MulticastAddress + "]:" + p.settings.Port
-	}
+	address := net.JoinHostPort(p.settings.MulticastAddress, p.settings.Port)
 	portNum := p.settings.portNum
 	allowSelf := p.settings.AllowSelf
 	p.RUnlock()
@@ -288,11 +278,7 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 	// log.Println(ifaces)
 
 	// Open up a connection
-	network := "udp4"
-	if p.settings.IPVersion == IPv6 {
-		network = "udp6"
-	}
-	c, err := net.ListenPacket(network, address)
+	c, err := net.ListenPacket(fmt.Sprintf("udp%d", p.settings.IPVersion), address)
 	if err != nil {
 		return
 	}
