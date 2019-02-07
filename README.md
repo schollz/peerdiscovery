@@ -1,9 +1,6 @@
 # peerdiscovery
 
-[![travis](https://travis-ci.org/schollz/peerdiscovery.svg?branch=master)](https://travis-ci.org/schollz/peerdiscovery) 
-[![go report card](https://goreportcard.com/badge/github.com/schollz/peerdiscovery)](https://goreportcard.com/report/github.com/schollz/peerdiscovery) 
-[![coverage](https://cover.run/go/github.com/schollz/peerdiscovery.svg)](https://gocover.io/github.com/schollz/peerdiscovery)
-[![godocs](https://godoc.org/github.com/schollz/peerdiscovery?status.svg)](https://godoc.org/github.com/schollz/peerdiscovery) 
+<img src="https://img.shields.io/badge/coverage-89%25-brightgreen.svg?style=flat-square" alt="Code coverage">&nbsp;<a href="https://goreportcard.com/report/github.com/schollz/peerdiscovery"><img src="https://goreportcard.com/badge/github.com/schollz/peerdiscovery?style=flat-square" alt="Go Report"></a>&nbsp;<a href="https://godoc.org/github.com/schollz/peerdiscovery"><img src="http://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square" alt="Go Doc"></a> 
 
 Pure-go library for cross-platform thread-safe local peer discovery using UDP multicast. I needed to use peer discovery for [croc](https://github.com/schollz/croc) and everything I tried had problems, so I made another one.
 
@@ -65,6 +62,10 @@ Pull requests are welcome. Feel free to...
 - Add new features
 - Fix bugs
 - Suggest improvements
+
+## Thanks
+
+Thanks [@geistesk](https://github.com/geistesk) for adding IPv6 support!
 
 ## License
 
