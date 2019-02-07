@@ -40,6 +40,23 @@ Here's the output when running on two computers. (*Run these gifs in sync by hit
 For more examples, see [the scanning example](https://github.com/schollz/peerdiscovery/blob/master/examples/main.go) or [the docs](https://godoc.org/github.com/schollz/peerdiscovery).
 
 
+## Testing
+
+To test the peer discovery with just one host, one can launch multiple containers. The provided `Dockerfile` will run the example code.
+Please make sure to enable [Docker's IPv6 support](https://docs.docker.com/v17.09/engine/userguide/networking/default_network/ipv6/) if you are using IPv6 for peer discovery.
+
+```console
+# Build the container, named peertest
+$ docker build -t peertest .
+
+# Execute the following command in multiple terminals
+$ docker run -t --rm peertest
+Scanning for 10 seconds to find LAN peers
+ 100% |████████████████████████████████████████|  [9s:0s]Found 1 other computers
+0) '172.17.0.2' with payload 'zqrecHipCO'
+```
+
+
 ## Contributing
 
 Pull requests are welcome. Feel free to...
