@@ -51,6 +51,8 @@ type Settings struct {
 	// unlimited scanning was requested, no timeout.
 	// The default time limit is 10 seconds.
 	TimeLimit time.Duration
+	// StopChan is a channel to stop the peer discvoery immediatley after reception.
+	StopChan chan struct{}
 	// AllowSelf will allow discovery the local machine (default false)
 	AllowSelf bool
 	// DisableBroadcast will not allow sending out a broadcast
@@ -106,6 +108,9 @@ func initialize(settings Settings) (p *peerDiscovery, err error) {
 	}
 	if p.settings.TimeLimit == 0 {
 		p.settings.TimeLimit = 10 * time.Second
+	}
+	if p.settings.StopChan == nil {
+		p.settings.StopChan = make(chan struct{})
 	}
 	p.received = make(map[string][]byte)
 	p.settings.multicastAddressNumbers = net.ParseIP(p.settings.MulticastAddress)
@@ -179,6 +184,13 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	start := time.Now()
 	for t := range ticker.C {
 		exit := false
+
+		select {
+		case <-p.settings.StopChan:
+			exit = true
+		default:
+		}
+
 		p.RLock()
 		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
 			exit = true
