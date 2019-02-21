@@ -47,14 +47,21 @@ type Settings struct {
 	// Delay is the amount of time between broadcasts. The default delay is 1 second.
 	Delay time.Duration
 	// TimeLimit is the amount of time to spend discovering, if the limit is not reached.
+	// A negative limit indiciates scanning until the limit was reached or, if an
+	// unlimited scanning was requested, no timeout.
 	// The default time limit is 10 seconds.
 	TimeLimit time.Duration
+	// StopChan is a channel to stop the peer discvoery immediatley after reception.
+	StopChan chan struct{}
 	// AllowSelf will allow discovery the local machine (default false)
 	AllowSelf bool
 	// DisableBroadcast will not allow sending out a broadcast
 	DisableBroadcast bool
 	// IPVersion specifies the version of the Internet Protocol (default IPv4)
 	IPVersion IPVersion
+	// Notify will be called each time a new peer was discovered.
+	// The default is nil, which means no notification whatsoever.
+	Notify func(Discovered)
 
 	portNum                 int
 	multicastAddressNumbers net.IP
@@ -101,6 +108,9 @@ func initialize(settings Settings) (p *peerDiscovery, err error) {
 	}
 	if p.settings.TimeLimit == 0 {
 		p.settings.TimeLimit = 10 * time.Second
+	}
+	if p.settings.StopChan == nil {
+		p.settings.StopChan = make(chan struct{})
 	}
 	p.received = make(map[string][]byte)
 	p.settings.multicastAddressNumbers = net.ParseIP(p.settings.MulticastAddress)
@@ -174,6 +184,13 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	start := time.Now()
 	for t := range ticker.C {
 		exit := false
+
+		select {
+		case <-p.settings.StopChan:
+			exit = true
+		default:
+		}
+
 		p.RLock()
 		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
 			exit = true
@@ -210,7 +227,7 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 			}
 		}
 
-		if exit || t.Sub(start) > timeLimit {
+		if exit || timeLimit > 0 && t.Sub(start) > timeLimit {
 			break
 		}
 	}
@@ -267,6 +284,7 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 	address := net.JoinHostPort(p.settings.MulticastAddress, p.settings.Port)
 	portNum := p.settings.portNum
 	allowSelf := p.settings.AllowSelf
+	notify := p.settings.Notify
 	p.RUnlock()
 	localIPs := getLocalIPs()
 
@@ -332,6 +350,14 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 			p.received[srcHost] = buffer[:n]
 		}
 		p.Unlock()
+
+		if notify != nil {
+			notify(Discovered{
+				Address: srcHost,
+				Payload: buffer[:n],
+			})
+		}
+
 		p.RLock()
 		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
 			p.RUnlock()
