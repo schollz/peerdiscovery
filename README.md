@@ -65,7 +65,7 @@ Pull requests are welcome. Feel free to...
 
 ## Thanks
 
-Thanks [@geistesk](https://github.com/geistesk) for adding IPv6 support!
+Thanks [@geistesk](https://github.com/geistesk) for adding IPv6 support and a `Notify` func!
 
 ## License
 
