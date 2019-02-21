@@ -28,6 +28,9 @@ func main() {
 		Payload:   []byte(randStringBytesMaskImprSrc(10)),
 		Delay:     500 * time.Millisecond,
 		TimeLimit: 10 * time.Second,
+		Notify: func(d peerdiscovery.Discovered) {
+			log.Println(d)
+		},
 	})
 
 	// print out results

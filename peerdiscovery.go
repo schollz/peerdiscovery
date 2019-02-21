@@ -29,6 +29,10 @@ type Discovered struct {
 	Payload []byte
 }
 
+func (d Discovered) String() string {
+	return fmt.Sprintf("address: %s, payload: %s", d.Address, d.Payload)
+}
+
 // Settings are the settings that can be specified for
 // doing peer discovery.
 type Settings struct {
