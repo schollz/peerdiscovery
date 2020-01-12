@@ -130,6 +130,49 @@ func initialize(settings Settings) (p *peerDiscovery, err error) {
 	return
 }
 
+type NetPacketConn interface {
+	JoinGroup(ifi *net.Interface, group net.Addr) error
+	SetMulticastInterface(ini *net.Interface) error
+	SetMulticastTTL(int) error
+	ReadFrom(buf []byte) (int, net.Addr, error)
+	WriteTo(buf []byte, dst net.Addr) (int, error)
+}
+
+type PacketConn4 struct {
+	*ipv4.PacketConn
+}
+
+// ReadFrom wraps the ipv4 ReadFrom without a control message
+func (pc4 PacketConn4) ReadFrom(buf []byte) (int, net.Addr, error) {
+	n, _, addr, err := pc4.PacketConn.ReadFrom(buf)
+	return n, addr, err
+}
+
+// WriteTo wraps the ipv4 WriteTo without a control message
+func (pc4 PacketConn4) WriteTo(buf []byte, dst net.Addr) (int, error) {
+	return pc4.PacketConn.WriteTo(buf, nil, dst)
+}
+
+type PacketConn6 struct {
+	*ipv6.PacketConn
+}
+
+// ReadFrom wraps the ipv6 ReadFrom without a control message
+func (pc6 PacketConn6) ReadFrom(buf []byte) (int, net.Addr, error) {
+	n, _, addr, err := pc6.PacketConn.ReadFrom(buf)
+	return n, addr, err
+}
+
+// WriteTo wraps the ipv6 WriteTo without a control message
+func (pc6 PacketConn6) WriteTo(buf []byte, dst net.Addr) (int, error) {
+	return pc6.PacketConn.WriteTo(buf, nil, dst)
+}
+
+// SetMulticastTTL wraps the hop limit of ipv6
+func (pc6 PacketConn6) SetMulticastTTL(i int) error {
+	return pc6.SetMulticastHopLimit(i)
+}
+
 // Discover will use the created settings to scan for LAN peers. It will return
 // an array of the discovered peers and their associate payloads. It will not
 // return broadcasts sent to itself.
@@ -167,19 +210,15 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	group := p.settings.multicastAddressNumbers
 
 	// ipv{4,6} have an own PacketConn, which does not implement net.PacketConn
-	var p2 interface{}
+	var p2 NetPacketConn
 	if p.settings.IPVersion == IPv4 {
-		p2 = ipv4.NewPacketConn(c)
+		p2 = PacketConn4{ipv4.NewPacketConn(c)}
 	} else {
-		p2 = ipv6.NewPacketConn(c)
+		p2 = PacketConn6{ipv6.NewPacketConn(c)}
 	}
 
 	for i := range ifaces {
-		if p.settings.IPVersion == IPv4 {
-			p2.(*ipv4.PacketConn).JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum})
-		} else {
-			p2.(*ipv6.PacketConn).JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum})
-		}
+		p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum})
 	}
 
 	go p.listen()
@@ -205,28 +244,14 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 			// write to multicast
 			dst := &net.UDPAddr{IP: group, Port: portNum}
 			for i := range ifaces {
-				if p.settings.IPVersion == IPv4 {
-					p24 := p2.(*ipv4.PacketConn)
-					if errMulticast := p24.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
-						// log.Print(errMulticast)
-						continue
-					}
-					p24.SetMulticastTTL(2)
-					if _, errMulticast := p24.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
-						// log.Print(errMulticast)
-						continue
-					}
-				} else {
-					p26 := p2.(*ipv6.PacketConn)
-					if errMulticast := p26.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
-						// log.Print(errMulticast)
-						continue
-					}
-					p26.SetMulticastHopLimit(2)
-					if _, errMulticast := p26.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
-						// log.Print(errMulticast)
-						continue
-					}
+				if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
+					// log.Print(errMulticast)
+					continue
+				}
+				p2.SetMulticastTTL(2)
+				if _, errMulticast := p2.WriteTo([]byte(payload), dst); errMulticast != nil {
+					// log.Print(errMulticast)
+					continue
 				}
 			}
 		}
@@ -240,24 +265,12 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 		// send out broadcast that is finished
 		dst := &net.UDPAddr{IP: group, Port: portNum}
 		for i := range ifaces {
-			if p.settings.IPVersion == IPv4 {
-				p24 := p2.(*ipv4.PacketConn)
-				if errMulticast := p24.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
-					continue
-				}
-				p24.SetMulticastTTL(2)
-				if _, errMulticast := p24.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
-					continue
-				}
-			} else {
-				p26 := p2.(*ipv6.PacketConn)
-				if errMulticast := p26.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
-					continue
-				}
-				p26.SetMulticastHopLimit(2)
-				if _, errMulticast := p26.WriteTo([]byte(payload), nil, dst); errMulticast != nil {
-					continue
-				}
+			if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
+				continue
+			}
+			p2.SetMulticastTTL(2)
+			if _, errMulticast := p2.WriteTo([]byte(payload), dst); errMulticast != nil {
+				continue
 			}
 		}
 	}
@@ -307,19 +320,15 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 	defer c.Close()
 
 	group := p.settings.multicastAddressNumbers
-	var p2 interface{}
+	var p2 NetPacketConn
 	if p.settings.IPVersion == IPv4 {
-		p2 = ipv4.NewPacketConn(c)
+		p2 = PacketConn4{ipv4.NewPacketConn(c)}
 	} else {
-		p2 = ipv6.NewPacketConn(c)
+		p2 = PacketConn6{ipv6.NewPacketConn(c)}
 	}
 
 	for i := range ifaces {
-		if p.settings.IPVersion == IPv4 {
-			p2.(*ipv4.PacketConn).JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum})
-		} else {
-			p2.(*ipv6.PacketConn).JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum})
-		}
+		p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum})
 	}
 
 	// Loop forever reading from the socket
@@ -330,12 +339,7 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 			src     net.Addr
 			errRead error
 		)
-		if p.settings.IPVersion == IPv4 {
-			n, _, src, errRead = p2.(*ipv4.PacketConn).ReadFrom(buffer)
-		} else {
-			n, _, src, errRead = p2.(*ipv6.PacketConn).ReadFrom(buffer)
-		}
-		// log.Println(n, src.String(), err, buffer[:n])
+		n, src, errRead = p2.ReadFrom(buffer)
 		if errRead != nil {
 			err = errRead
 			return
