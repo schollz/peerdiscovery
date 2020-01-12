@@ -186,14 +186,8 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	ticker := time.NewTicker(tickerDuration)
 	defer ticker.Stop()
 	start := time.Now()
-	for t := range ticker.C {
+	for {
 		exit := false
-
-		select {
-		case <-p.settings.StopChan:
-			exit = true
-		default:
-		}
 
 		p.RLock()
 		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
@@ -231,9 +225,16 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 			}
 		}
 
-		if exit || timeLimit > 0 && t.Sub(start) > timeLimit {
+		if exit || timeLimit > 0 && time.Since(start) > timeLimit {
 			break
 		}
+
+		select {
+		case <-p.settings.StopChan:
+			exit = true
+		case <-ticker.C:
+		}
+
 	}
 
 	if !s.DisableBroadcast {

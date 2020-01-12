@@ -10,7 +10,10 @@ import (
 func TestDiscovery(t *testing.T) {
 	for _, version := range []IPVersion{IPv4, IPv6} {
 		// should not be able to "discover" itself
-		discoveries, err := Discover()
+		discoveries, err := Discover(Settings{
+			TimeLimit: 5 * time.Second,
+			Delay:     500 * time.Millisecond,
+		})
 		assert.Nil(t, err)
 		assert.Zero(t, len(discoveries))
 
