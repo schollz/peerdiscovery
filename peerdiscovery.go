@@ -138,41 +138,6 @@ type NetPacketConn interface {
 	WriteTo(buf []byte, dst net.Addr) (int, error)
 }
 
-type PacketConn4 struct {
-	*ipv4.PacketConn
-}
-
-// ReadFrom wraps the ipv4 ReadFrom without a control message
-func (pc4 PacketConn4) ReadFrom(buf []byte) (int, net.Addr, error) {
-	n, _, addr, err := pc4.PacketConn.ReadFrom(buf)
-	return n, addr, err
-}
-
-// WriteTo wraps the ipv4 WriteTo without a control message
-func (pc4 PacketConn4) WriteTo(buf []byte, dst net.Addr) (int, error) {
-	return pc4.PacketConn.WriteTo(buf, nil, dst)
-}
-
-type PacketConn6 struct {
-	*ipv6.PacketConn
-}
-
-// ReadFrom wraps the ipv6 ReadFrom without a control message
-func (pc6 PacketConn6) ReadFrom(buf []byte) (int, net.Addr, error) {
-	n, _, addr, err := pc6.PacketConn.ReadFrom(buf)
-	return n, addr, err
-}
-
-// WriteTo wraps the ipv6 WriteTo without a control message
-func (pc6 PacketConn6) WriteTo(buf []byte, dst net.Addr) (int, error) {
-	return pc6.PacketConn.WriteTo(buf, nil, dst)
-}
-
-// SetMulticastTTL wraps the hop limit of ipv6
-func (pc6 PacketConn6) SetMulticastTTL(i int) error {
-	return pc6.SetMulticastHopLimit(i)
-}
-
 // Discover will use the created settings to scan for LAN peers. It will return
 // an array of the discovered peers and their associate payloads. It will not
 // return broadcasts sent to itself.
@@ -242,18 +207,7 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 
 		if !s.DisableBroadcast {
 			// write to multicast
-			dst := &net.UDPAddr{IP: group, Port: portNum}
-			for i := range ifaces {
-				if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
-					// log.Print(errMulticast)
-					continue
-				}
-				p2.SetMulticastTTL(2)
-				if _, errMulticast := p2.WriteTo([]byte(payload), dst); errMulticast != nil {
-					// log.Print(errMulticast)
-					continue
-				}
-			}
+			broadcast(p2, payload, ifaces, &net.UDPAddr{IP: group, Port: portNum})
 		}
 
 		if exit || timeLimit > 0 && t.Sub(start) > timeLimit {
@@ -263,16 +217,7 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 
 	if !s.DisableBroadcast {
 		// send out broadcast that is finished
-		dst := &net.UDPAddr{IP: group, Port: portNum}
-		for i := range ifaces {
-			if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
-				continue
-			}
-			p2.SetMulticastTTL(2)
-			if _, errMulticast := p2.WriteTo([]byte(payload), dst); errMulticast != nil {
-				continue
-			}
-		}
+		broadcast(p2, payload, ifaces, &net.UDPAddr{IP: group, Port: portNum})
 	}
 
 	discoveries = make([]Discovered, len(p.received))
@@ -287,6 +232,18 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	}
 	p.RUnlock()
 	return
+}
+
+func broadcast(p2 NetPacketConn, payload []byte, ifaces []net.Interface, dst net.Addr) {
+	for i := range ifaces {
+		if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
+			continue
+		}
+		p2.SetMulticastTTL(2)
+		if _, errMulticast := p2.WriteTo([]byte(payload), dst); errMulticast != nil {
+			continue
+		}
+	}
 }
 
 const (
@@ -407,4 +364,39 @@ func getLocalIPs() (ips map[string]struct{}) {
 		}
 	}
 	return
+}
+
+type PacketConn4 struct {
+	*ipv4.PacketConn
+}
+
+// ReadFrom wraps the ipv4 ReadFrom without a control message
+func (pc4 PacketConn4) ReadFrom(buf []byte) (int, net.Addr, error) {
+	n, _, addr, err := pc4.PacketConn.ReadFrom(buf)
+	return n, addr, err
+}
+
+// WriteTo wraps the ipv4 WriteTo without a control message
+func (pc4 PacketConn4) WriteTo(buf []byte, dst net.Addr) (int, error) {
+	return pc4.PacketConn.WriteTo(buf, nil, dst)
+}
+
+type PacketConn6 struct {
+	*ipv6.PacketConn
+}
+
+// ReadFrom wraps the ipv6 ReadFrom without a control message
+func (pc6 PacketConn6) ReadFrom(buf []byte) (int, net.Addr, error) {
+	n, _, addr, err := pc6.PacketConn.ReadFrom(buf)
+	return n, addr, err
+}
+
+// WriteTo wraps the ipv6 WriteTo without a control message
+func (pc6 PacketConn6) WriteTo(buf []byte, dst net.Addr) (int, error) {
+	return pc6.PacketConn.WriteTo(buf, nil, dst)
+}
+
+// SetMulticastTTL wraps the hop limit of ipv6
+func (pc6 PacketConn6) SetMulticastTTL(i int) error {
+	return pc6.SetMulticastHopLimit(i)
 }
