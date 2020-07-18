@@ -190,6 +190,7 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	ticker := time.NewTicker(tickerDuration)
 	defer ticker.Stop()
 	start := time.Now()
+
 	for {
 		exit := false
 
@@ -204,16 +205,15 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 			broadcast(p2, payload, ifaces, &net.UDPAddr{IP: group, Port: portNum})
 		}
 
-		if exit || timeLimit > 0 && time.Since(start) > timeLimit {
-			break
-		}
-
 		select {
 		case <-p.settings.StopChan:
 			exit = true
 		case <-ticker.C:
 		}
 
+		if exit || timeLimit > 0 && time.Since(start) > timeLimit {
+			break
+		}
 	}
 
 	if !s.DisableBroadcast {
