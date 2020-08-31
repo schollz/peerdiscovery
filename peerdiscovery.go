@@ -221,9 +221,9 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 		broadcast(p2, payload, ifaces, &net.UDPAddr{IP: group, Port: portNum})
 	}
 
+	p.RLock()
 	discoveries = make([]Discovered, len(p.received))
 	i := 0
-	p.RLock()
 	for ip, payload := range p.received {
 		discoveries[i] = Discovered{
 			Address: ip,
