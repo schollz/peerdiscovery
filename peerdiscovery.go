@@ -158,11 +158,6 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	address := net.JoinHostPort(p.settings.MulticastAddress, p.settings.Port)
 	portNum := p.settings.portNum
 
-	payload := p.settings.Payload
-	if p.settings.PayloadFunc != nil {
-		payload = p.settings.PayloadFunc()
-	}
-
 	tickerDuration := p.settings.Delay
 	timeLimit := p.settings.TimeLimit
 	p.RUnlock()
@@ -209,6 +204,10 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 		p.RUnlock()
 
 		if !s.DisableBroadcast {
+			payload := p.settings.Payload
+			if p.settings.PayloadFunc != nil {
+				payload = p.settings.PayloadFunc()
+			}
 			// write to multicast
 			broadcast(p2, payload, ifaces, &net.UDPAddr{IP: group, Port: portNum})
 		}
@@ -225,6 +224,10 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	}
 
 	if !s.DisableBroadcast {
+		payload := p.settings.Payload
+		if p.settings.PayloadFunc != nil {
+			payload = p.settings.PayloadFunc()
+		}
 		// send out broadcast that is finished
 		broadcast(p2, payload, ifaces, &net.UDPAddr{IP: group, Port: portNum})
 	}
