@@ -48,6 +48,9 @@ type Settings struct {
 	MulticastAddress string
 	// Payload is the bytes that are sent out with each broadcast. Must be short.
 	Payload []byte
+	// PayloadFunc is the function that will be called to dynamically generate payload
+	// before every broadcast. If this pointer is nil `Payload` field will be broadcasted instead.
+	PayloadFunc func() []byte
 	// Delay is the amount of time between broadcasts. The default delay is 1 second.
 	Delay time.Duration
 	// TimeLimit is the amount of time to spend discovering, if the limit is not reached.
@@ -154,7 +157,7 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	p.RLock()
 	address := net.JoinHostPort(p.settings.MulticastAddress, p.settings.Port)
 	portNum := p.settings.portNum
-	payload := p.settings.Payload
+
 	tickerDuration := p.settings.Delay
 	timeLimit := p.settings.TimeLimit
 	p.RUnlock()
@@ -201,6 +204,10 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 		p.RUnlock()
 
 		if !s.DisableBroadcast {
+			payload := p.settings.Payload
+			if p.settings.PayloadFunc != nil {
+				payload = p.settings.PayloadFunc()
+			}
 			// write to multicast
 			broadcast(p2, payload, ifaces, &net.UDPAddr{IP: group, Port: portNum})
 		}
@@ -217,6 +224,10 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	}
 
 	if !s.DisableBroadcast {
+		payload := p.settings.Payload
+		if p.settings.PayloadFunc != nil {
+			payload = p.settings.PayloadFunc()
+		}
 		// send out broadcast that is finished
 		broadcast(p2, payload, ifaces, &net.UDPAddr{IP: group, Port: portNum})
 	}
