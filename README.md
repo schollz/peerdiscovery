@@ -65,7 +65,7 @@ Pull requests are welcome. Feel free to...
 
 ## Thanks
 
-Thanks [@geistesk](https://github.com/geistesk) for adding IPv6 support and a `Notify` func, and helping maintain! Thanks [@Kunde21](https://github.com/Kunde21) for providing a bug fix and massively refactoring the code in a much better way. Thanks [@robpre](https://github.com/robpre) for finding and fixing bugs!
+Thanks [@geistesk](https://github.com/geistesk) for adding IPv6 support and a `Notify` func, and helping maintain! Thanks [@Kunde21](https://github.com/Kunde21) for providing a bug fix and massively refactoring the code in a much better way. Thanks [@robpre](https://github.com/robpre) for finding and fixing bugs. Thanks [@shvydky](https://github.com/shvydky) for adding dynamic payloads.
 
 ## License
 
