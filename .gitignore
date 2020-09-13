@@ -12,3 +12,9 @@
 
 # Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
 .glide/
+
+examples/examples
+examples/ipv4/go.sum
+examples/ipv4/ipv4
+examples/ipv6/go.sum
+examples/ipv6/ipv6
