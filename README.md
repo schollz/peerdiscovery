@@ -34,7 +34,7 @@ Here's the output when running on two computers. (*Run these gifs in sync by hit
 
 ![computer 1](https://user-images.githubusercontent.com/6550035/39165716-ba8db9ec-473a-11e8-96f7-e8c64faac676.gif)
 
-For more examples, see [the scanning example](https://github.com/schollz/peerdiscovery/blob/master/examples/main.go) or [the docs](https://godoc.org/github.com/schollz/peerdiscovery).
+For more examples, see the scanning examples ([ipv4](https://github.com/schollz/peerdiscovery/blob/master/examples/ipv4/main.go) and [ipv6](https://github.com/schollz/peerdiscovery/blob/master/examples/ipv6/main.go))  or [the docs](https://godoc.org/github.com/schollz/peerdiscovery).
 
 
 ## Testing
