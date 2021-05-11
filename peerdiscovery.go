@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -142,6 +141,40 @@ type NetPacketConn interface {
 	WriteTo(buf []byte, dst net.Addr) (int, error)
 }
 
+// interfaces returns a list of valid network interfaces
+func interfaces(ipv4 bool) (ifaces []net.Interface, err error) {
+	allIfaces, err := net.Interfaces()
+	if err != nil {
+		return
+	}
+	ifaces = make([]net.Interface, 0, len(allIfaces))
+	for i := range allIfaces {
+		iface := allIfaces[i]
+		if iface.Flags & net.FlagUp == 0 || iface.Flags & net.FlagBroadcast == 0 {
+			// interface is down or does not support broadcasting
+			continue
+		}
+		addrs, _ := iface.Addrs()
+		supported := false
+		for j := range addrs {
+			addr := addrs[j].(*net.IPNet)
+			if addr == nil || addr.IP == nil {
+				continue
+			}
+			isv4 := addr.IP.To4() != nil
+			if isv4 == ipv4 {
+				// IP family matches, go on and use interface
+				supported = true
+				break
+			}
+		}
+		if supported {
+			ifaces = append(ifaces, iface)
+		}
+	}
+	return
+}
+
 // Discover will use the created settings to scan for LAN peers. It will return
 // an array of the discovered peers and their associate payloads. It will not
 // return broadcasts sent to itself.
@@ -163,42 +196,14 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	timeLimit := p.settings.TimeLimit
 	p.RUnlock()
 
-	// get interfaces
-	allIfaces, err := net.Interfaces()
+	ifaces, err := interfaces(p.settings.IPVersion == IPv4)
 	if err != nil {
 		return
 	}
-	// only include interfaces that multicast
-	ifaces := make([]net.Interface, len(allIfaces))
-	ifacesi := 0
-	for _, iface := range allIfaces {
-		if !strings.Contains(iface.Flags.String(), "multicast") {
-			continue
-		}
-		addrs, errAddr := iface.Addrs()
-		if errAddr != nil {
-			continue
-		}
-		hasIPV4 := false
-		hasIPV6 := false
-		for _, addr := range addrs {
-			if strings.Contains(addr.String(), ":") {
-				hasIPV6 = true
-			} else {
-				hasIPV4 = true
-			}
-		}
-		if (p.settings.IPVersion == IPv4 && hasIPV4) ||
-			(p.settings.IPVersion == IPv6 && hasIPV6) {
-			ifaces[ifacesi] = iface
-			ifacesi++
-		}
-	}
-	if ifacesi == 0 {
+	if len(ifaces) == 0 {
 		err = fmt.Errorf("no multicast interface found")
 		return
 	}
-	ifaces = ifaces[:ifacesi]
 
 	// Open up a connection
 	c, err := net.ListenPacket(fmt.Sprintf("udp%d", p.settings.IPVersion), address)
