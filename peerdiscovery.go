@@ -175,8 +175,24 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 		if !strings.Contains(iface.Flags.String(), "multicast") {
 			continue
 		}
-		ifaces[ifacesi] = iface
-		ifacesi++
+		addrs, errAddr := iface.Addrs()
+		if errAddr != nil {
+			continue
+		}
+		hasIPV4 := false
+		hasIPV6 := false
+		for _, addr := range addrs {
+			if strings.Contains(addr.String(), ":") {
+				hasIPV6 = true
+			} else {
+				hasIPV4 = true
+			}
+		}
+		if (p.settings.IPVersion == IPv4 && hasIPV4) ||
+			(p.settings.IPVersion == IPv6 && hasIPV6) {
+			ifaces[ifacesi] = iface
+			ifacesi++
+		}
 	}
 	if ifacesi == 0 {
 		err = fmt.Errorf("no multicast interface found")
