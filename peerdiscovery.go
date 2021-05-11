@@ -141,8 +141,8 @@ type NetPacketConn interface {
 	WriteTo(buf []byte, dst net.Addr) (int, error)
 }
 
-// interfaces returns a list of valid network interfaces
-func interfaces(ipv4 bool) (ifaces []net.Interface, err error) {
+// filterInterfaces returns a list of valid network interfaces
+func filterInterfaces(ipv4 bool) (ifaces []net.Interface, err error) {
 	allIfaces, err := net.Interfaces()
 	if err != nil {
 		return
@@ -150,7 +150,7 @@ func interfaces(ipv4 bool) (ifaces []net.Interface, err error) {
 	ifaces = make([]net.Interface, 0, len(allIfaces))
 	for i := range allIfaces {
 		iface := allIfaces[i]
-		if iface.Flags & net.FlagUp == 0 || iface.Flags & net.FlagBroadcast == 0 {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagBroadcast == 0 {
 			// interface is down or does not support broadcasting
 			continue
 		}
@@ -196,7 +196,7 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	timeLimit := p.settings.TimeLimit
 	p.RUnlock()
 
-	ifaces, err := interfaces(p.settings.IPVersion == IPv4)
+	ifaces, err := filterInterfaces(p.settings.IPVersion == IPv4)
 	if err != nil {
 		return
 	}
