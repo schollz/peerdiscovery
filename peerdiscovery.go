@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -163,10 +164,25 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	p.RUnlock()
 
 	// get interfaces
-	ifaces, err := net.Interfaces()
+	allIfaces, err := net.Interfaces()
 	if err != nil {
 		return
 	}
+	// only include interfaces that multicast
+	ifaces := make([]net.Interface, len(allIfaces))
+	ifacesi := 0
+	for _, iface := range allIfaces {
+		if !strings.Contains(iface.Flags.String(), "multicast") {
+			continue
+		}
+		ifaces[ifacesi] = iface
+		ifacesi++
+	}
+	if ifacesi == 0 {
+		err = fmt.Errorf("no multicast interface found")
+		return
+	}
+	ifaces = ifaces[:ifacesi]
 
 	// Open up a connection
 	c, err := net.ListenPacket(fmt.Sprintf("udp%d", p.settings.IPVersion), address)
