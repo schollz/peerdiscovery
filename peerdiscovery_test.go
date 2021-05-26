@@ -1,6 +1,7 @@
 package peerdiscovery
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ func TestDiscovery(t *testing.T) {
 			TimeLimit: 1 * time.Second,
 			IPVersion: version,
 		})
+		fmt.Println(discoveries)
 		assert.Nil(t, err)
 		assert.NotZero(t, len(discoveries))
 	}
