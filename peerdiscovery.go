@@ -307,6 +307,7 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 	address := net.JoinHostPort(p.settings.MulticastAddress, p.settings.Port)
 	portNum := p.settings.portNum
 	allowSelf := p.settings.AllowSelf
+	timeLimit := p.settings.TimeLimit
 	notify := p.settings.Notify
 	p.RUnlock()
 	localIPs := getLocalIPs()
@@ -337,6 +338,7 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 		p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum})
 	}
 
+	start := time.Now()
 	// Loop forever reading from the socket
 	for {
 		buffer := make([]byte, maxDatagramSize)
@@ -374,6 +376,10 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 
 		p.RLock()
 		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
+			p.RUnlock()
+			break
+		}
+		if timeLimit > 0 && time.Since(start) > timeLimit {
 			p.RUnlock()
 			break
 		}
