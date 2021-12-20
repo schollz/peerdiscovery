@@ -80,6 +80,7 @@ type peerDiscovery struct {
 
 	received map[string][]byte
 	sync.RWMutex
+	exit bool
 }
 
 // initialize returns a new peerDiscovery object which can be used to discover peers.
@@ -232,11 +233,9 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	start := time.Now()
 
 	for {
-		exit := false
-
 		p.RLock()
 		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
-			exit = true
+			p.exit = true
 		}
 		p.RUnlock()
 
@@ -251,11 +250,11 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 
 		select {
 		case <-p.settings.StopChan:
-			exit = true
+			p.exit = true
 		case <-ticker.C:
 		}
 
-		if exit || timeLimit > 0 && time.Since(start) > timeLimit {
+		if p.exit || timeLimit > 0 && time.Since(start) > timeLimit {
 			break
 		}
 	}
@@ -379,7 +378,7 @@ func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
 			p.RUnlock()
 			break
 		}
-		if timeLimit > 0 && time.Since(start) > timeLimit {
+		if p.exit || timeLimit > 0 && time.Since(start) > timeLimit {
 			p.RUnlock()
 			break
 		}
