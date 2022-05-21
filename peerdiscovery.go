@@ -143,36 +143,51 @@ type NetPacketConn interface {
 }
 
 // filterInterfaces returns a list of valid network interfaces
-func filterInterfaces(ipv4 bool) (ifaces []net.Interface, err error) {
+func filterInterfaces(useIpv4 bool) (ifaces []net.Interface, err error) {
 	allIfaces, err := net.Interfaces()
 	if err != nil {
 		return
 	}
-	ifaces = make([]net.Interface, 0, len(allIfaces))
-	for i := range allIfaces {
-		iface := allIfaces[i]
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagBroadcast == 0 {
-			// interface is down or does not support broadcasting
+
+	for _, iface := range allIfaces {
+		// Interface must be up and either support multicast or be a loopback interface.
+		if iface.Flags&net.FlagUp == 0 {
 			continue
 		}
-		addrs, _ := iface.Addrs()
+		if iface.Flags&net.FlagLoopback == 0 && iface.Flags&net.FlagMulticast == 0 {
+			continue
+		}
+
+		addrs, addrsErr := iface.Addrs()
+		if addrsErr != nil {
+			err = addrsErr
+			return
+		}
+
 		supported := false
 		for j := range addrs {
-			addr := addrs[j].(*net.IPNet)
+			addr, ok := addrs[j].(*net.IPNet)
+			if !ok {
+				continue
+			}
 			if addr == nil || addr.IP == nil {
 				continue
 			}
-			isv4 := addr.IP.To4() != nil
-			if isv4 == ipv4 {
-				// IP family matches, go on and use interface
+
+			// An IP can either be an IPv4 or an IPv6 address.
+			// Check if the desired familiy is used.
+			familiyMatches := (addr.IP.To4() != nil) == useIpv4
+			if familiyMatches {
 				supported = true
 				break
 			}
 		}
+
 		if supported {
 			ifaces = append(ifaces, iface)
 		}
 	}
+
 	return
 }
 
