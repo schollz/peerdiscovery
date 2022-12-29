@@ -3,8 +3,6 @@ package peerdiscovery
 import (
 	"fmt"
 	"net"
-	"strconv"
-	"sync"
 	"time"
 
 	"golang.org/x/net/ipv4"
@@ -27,6 +25,16 @@ type Discovered struct {
 	Address string
 	// Payload is the associated payload from discovered peer.
 	Payload []byte
+
+	Metadata *Metadata
+}
+
+// Metadata is the metadata associated with a discovered peer.
+// To update the metadata, assign your own metadata to the Metadata.Data field.
+// The metadata is not protected by a mutex, so you must do this yourself.
+// The metadata update happens by pointer, to keep the library backwards compatible.
+type Metadata struct {
+	Data interface{}
 }
 
 func (d Discovered) String() string {
@@ -70,68 +78,14 @@ type Settings struct {
 	// The default is nil, which means no notification whatsoever.
 	Notify func(Discovered)
 
+	// NotifyLost will be called each time a peer was lost.
+	// The default is nil, which means no notification whatsoever.
+	// This function should not take too long to execute, as it is called
+	// from the peer garbage collector.
+	NotifyLost func(LostPeer)
+
 	portNum                 int
 	multicastAddressNumbers net.IP
-}
-
-// peerDiscovery is the object that can do the discovery for finding LAN peers.
-type peerDiscovery struct {
-	settings Settings
-
-	received map[string][]byte
-	sync.RWMutex
-	exit bool
-}
-
-// initialize returns a new peerDiscovery object which can be used to discover peers.
-// The settings are optional. If any setting is not supplied, then defaults are used.
-// See the Settings for more information.
-func initialize(settings Settings) (p *peerDiscovery, err error) {
-	p = new(peerDiscovery)
-	p.Lock()
-	defer p.Unlock()
-
-	// initialize settings
-	p.settings = settings
-
-	// defaults
-	if p.settings.Port == "" {
-		p.settings.Port = "9999"
-	}
-	if p.settings.IPVersion == 0 {
-		p.settings.IPVersion = IPv4
-	}
-	if p.settings.MulticastAddress == "" {
-		if p.settings.IPVersion == IPv4 {
-			p.settings.MulticastAddress = "239.255.255.250"
-		} else {
-			p.settings.MulticastAddress = "ff02::c"
-		}
-	}
-	if len(p.settings.Payload) == 0 {
-		p.settings.Payload = []byte("hi")
-	}
-	if p.settings.Delay == 0 {
-		p.settings.Delay = 1 * time.Second
-	}
-	if p.settings.TimeLimit == 0 {
-		p.settings.TimeLimit = 10 * time.Second
-	}
-	if p.settings.StopChan == nil {
-		p.settings.StopChan = make(chan struct{})
-	}
-	p.received = make(map[string][]byte)
-	p.settings.multicastAddressNumbers = net.ParseIP(p.settings.MulticastAddress)
-	if p.settings.multicastAddressNumbers == nil {
-		err = fmt.Errorf("Multicast Address %s could not be converted to an IP",
-			p.settings.MulticastAddress)
-		return
-	}
-	p.settings.portNum, err = strconv.Atoi(p.settings.Port)
-	if err != nil {
-		return
-	}
-	return
 }
 
 type NetPacketConn interface {
@@ -142,66 +96,37 @@ type NetPacketConn interface {
 	WriteTo(buf []byte, dst net.Addr) (int, error)
 }
 
-// filterInterfaces returns a list of valid network interfaces
-func filterInterfaces(useIpv4 bool) (ifaces []net.Interface, err error) {
-	allIfaces, err := net.Interfaces()
-	if err != nil {
-		return
-	}
-
-	for _, iface := range allIfaces {
-		// Interface must be up and either support multicast or be a loopback interface.
-		if iface.Flags&net.FlagUp == 0 {
-			continue
-		}
-		if iface.Flags&net.FlagLoopback == 0 && iface.Flags&net.FlagMulticast == 0 {
-			continue
-		}
-
-		addrs, addrsErr := iface.Addrs()
-		if addrsErr != nil {
-			err = addrsErr
-			return
-		}
-
-		supported := false
-		for j := range addrs {
-			addr, ok := addrs[j].(*net.IPNet)
-			if !ok {
-				continue
-			}
-			if addr == nil || addr.IP == nil {
-				continue
-			}
-
-			// An IP can either be an IPv4 or an IPv6 address.
-			// Check if the desired familiy is used.
-			familiyMatches := (addr.IP.To4() != nil) == useIpv4
-			if familiyMatches {
-				supported = true
-				break
-			}
-		}
-
-		if supported {
-			ifaces = append(ifaces, iface)
-		}
-	}
-
-	return
-}
-
 // Discover will use the created settings to scan for LAN peers. It will return
 // an array of the discovered peers and their associate payloads. It will not
 // return broadcasts sent to itself.
 func Discover(settings ...Settings) (discoveries []Discovered, err error) {
+	_, discoveries, err = newPeerDiscovery(settings...)
+	if err != nil {
+		return nil, err
+	}
+	return discoveries, nil
+}
+
+func NewPeerDiscovery(settings ...Settings) (pd *PeerDiscovery, err error) {
+	pd, discoveries, err := newPeerDiscovery(settings...)
+
+	if notify := pd.settings.Notify; notify != nil {
+		for _, d := range discoveries {
+			notify(d)
+		}
+	}
+
+	return pd, err
+}
+
+func newPeerDiscovery(settings ...Settings) (pd *PeerDiscovery, discoveries []Discovered, err error) {
 	s := Settings{}
 	if len(settings) > 0 {
 		s = settings[0]
 	}
 	p, err := initialize(s)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 
 	p.RLock()
@@ -214,17 +139,17 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 
 	ifaces, err := filterInterfaces(p.settings.IPVersion == IPv4)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 	if len(ifaces) == 0 {
 		err = fmt.Errorf("no multicast interface found")
-		return
+		return nil, nil, err
 	}
 
 	// Open up a connection
 	c, err := net.ListenPacket(fmt.Sprintf("udp%d", p.settings.IPVersion), address)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 	defer c.Close()
 
@@ -284,188 +209,21 @@ func Discover(settings ...Settings) (discoveries []Discovered, err error) {
 	}
 
 	p.RLock()
+
 	discoveries = make([]Discovered, len(p.received))
 	i := 0
-	for ip, payload := range p.received {
+	for ip, peerState := range p.received {
 		discoveries[i] = Discovered{
-			Address: ip,
-			Payload: payload,
+			Address:  ip,
+			Payload:  peerState.lastPayload,
+			Metadata: peerState.metadata,
 		}
 		i++
 	}
+
 	p.RUnlock()
-	return
-}
 
-func broadcast(p2 NetPacketConn, payload []byte, ifaces []net.Interface, dst net.Addr) {
-	for i := range ifaces {
-		if errMulticast := p2.SetMulticastInterface(&ifaces[i]); errMulticast != nil {
-			continue
-		}
-		p2.SetMulticastTTL(2)
-		if _, errMulticast := p2.WriteTo([]byte(payload), dst); errMulticast != nil {
-			continue
-		}
-	}
-}
+	go p.gc()
 
-const (
-	// https://en.wikipedia.org/wiki/User_Datagram_Protocol#Packet_structure
-	maxDatagramSize = 66507
-)
-
-// Listen binds to the UDP address and port given and writes packets received
-// from that address to a buffer which is passed to a hander
-func (p *peerDiscovery) listen() (recievedBytes []byte, err error) {
-	p.RLock()
-	address := net.JoinHostPort(p.settings.MulticastAddress, p.settings.Port)
-	portNum := p.settings.portNum
-	allowSelf := p.settings.AllowSelf
-	timeLimit := p.settings.TimeLimit
-	notify := p.settings.Notify
-	p.RUnlock()
-	localIPs := getLocalIPs()
-
-	// get interfaces
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return
-	}
-	// log.Println(ifaces)
-
-	// Open up a connection
-	c, err := net.ListenPacket(fmt.Sprintf("udp%d", p.settings.IPVersion), address)
-	if err != nil {
-		return
-	}
-	defer c.Close()
-
-	group := p.settings.multicastAddressNumbers
-	var p2 NetPacketConn
-	if p.settings.IPVersion == IPv4 {
-		p2 = PacketConn4{ipv4.NewPacketConn(c)}
-	} else {
-		p2 = PacketConn6{ipv6.NewPacketConn(c)}
-	}
-
-	for i := range ifaces {
-		p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum})
-	}
-
-	start := time.Now()
-	// Loop forever reading from the socket
-	for {
-		buffer := make([]byte, maxDatagramSize)
-		var (
-			n       int
-			src     net.Addr
-			errRead error
-		)
-		n, src, errRead = p2.ReadFrom(buffer)
-		if errRead != nil {
-			err = errRead
-			return
-		}
-
-		srcHost, _, _ := net.SplitHostPort(src.String())
-
-		if _, ok := localIPs[srcHost]; ok && !allowSelf {
-			continue
-		}
-
-		// log.Println(src, hex.Dump(buffer[:n]))
-
-		p.Lock()
-		if _, ok := p.received[srcHost]; !ok {
-			p.received[srcHost] = buffer[:n]
-		}
-		p.Unlock()
-
-		if notify != nil {
-			notify(Discovered{
-				Address: srcHost,
-				Payload: buffer[:n],
-			})
-		}
-
-		p.RLock()
-		if len(p.received) >= p.settings.Limit && p.settings.Limit > 0 {
-			p.RUnlock()
-			break
-		}
-		if p.exit || timeLimit > 0 && time.Since(start) > timeLimit {
-			p.RUnlock()
-			break
-		}
-		p.RUnlock()
-	}
-
-	return
-}
-
-// getLocalIPs returns the local ip address
-func getLocalIPs() (ips map[string]struct{}) {
-	ips = make(map[string]struct{})
-	ips["localhost"] = struct{}{}
-	ips["127.0.0.1"] = struct{}{}
-	ips["::1"] = struct{}{}
-
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return
-	}
-
-	for _, iface := range ifaces {
-		addrs, err := iface.Addrs()
-		if err != nil {
-			continue
-		}
-
-		for _, address := range addrs {
-			ip, _, err := net.ParseCIDR(address.String())
-			if err != nil {
-				// log.Printf("Failed to parse %s: %v", address.String(), err)
-				continue
-			}
-
-			ips[ip.String()+"%"+iface.Name] = struct{}{}
-			ips[ip.String()] = struct{}{}
-		}
-	}
-	return
-}
-
-type PacketConn4 struct {
-	*ipv4.PacketConn
-}
-
-// ReadFrom wraps the ipv4 ReadFrom without a control message
-func (pc4 PacketConn4) ReadFrom(buf []byte) (int, net.Addr, error) {
-	n, _, addr, err := pc4.PacketConn.ReadFrom(buf)
-	return n, addr, err
-}
-
-// WriteTo wraps the ipv4 WriteTo without a control message
-func (pc4 PacketConn4) WriteTo(buf []byte, dst net.Addr) (int, error) {
-	return pc4.PacketConn.WriteTo(buf, nil, dst)
-}
-
-type PacketConn6 struct {
-	*ipv6.PacketConn
-}
-
-// ReadFrom wraps the ipv6 ReadFrom without a control message
-func (pc6 PacketConn6) ReadFrom(buf []byte) (int, net.Addr, error) {
-	n, _, addr, err := pc6.PacketConn.ReadFrom(buf)
-	return n, addr, err
-}
-
-// WriteTo wraps the ipv6 WriteTo without a control message
-func (pc6 PacketConn6) WriteTo(buf []byte, dst net.Addr) (int, error) {
-	return pc6.PacketConn.WriteTo(buf, nil, dst)
-}
-
-// SetMulticastTTL wraps the hop limit of ipv6
-func (pc6 PacketConn6) SetMulticastTTL(i int) error {
-	return pc6.SetMulticastHopLimit(i)
+	return p, discoveries, nil
 }

@@ -41,7 +41,7 @@ func TestDiscoverySelf(t *testing.T) {
 				Limit:     -1,
 				Payload:   []byte("payload"),
 				Delay:     10 * time.Millisecond,
-				TimeLimit: 1 * time.Second,
+				TimeLimit: 2 * time.Second,
 				IPVersion: version,
 			})
 			assert.Nil(t, err)
@@ -50,7 +50,7 @@ func TestDiscoverySelf(t *testing.T) {
 			Limit:            1,
 			Payload:          []byte("payload"),
 			Delay:            500 * time.Millisecond,
-			TimeLimit:        1 * time.Second,
+			TimeLimit:        2 * time.Second,
 			DisableBroadcast: true,
 			AllowSelf:        true,
 		})
