@@ -81,8 +81,8 @@ func (p *PeerDiscovery) ActivePeers() (peers []*PeerState) {
 }
 
 // Listen binds to the UDP address and port given and writes packets received
-// from that address to a buffer which is passed to a hander
-func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
+// from that address to a buffer which is passed to a handler
+func (p *PeerDiscovery) listen() (receivedBytes []byte, err error) {
 	p.RLock()
 	address := net.JoinHostPort(p.settings.MulticastAddress, p.settings.Port)
 	portNum := p.settings.portNum

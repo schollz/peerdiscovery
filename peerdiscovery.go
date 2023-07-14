@@ -62,11 +62,11 @@ type Settings struct {
 	// Delay is the amount of time between broadcasts. The default delay is 1 second.
 	Delay time.Duration
 	// TimeLimit is the amount of time to spend discovering, if the limit is not reached.
-	// A negative limit indiciates scanning until the limit was reached or, if an
+	// A negative limit indicates scanning until the limit was reached or, if an
 	// unlimited scanning was requested, no timeout.
 	// The default time limit is 10 seconds.
 	TimeLimit time.Duration
-	// StopChan is a channel to stop the peer discvoery immediatley after reception.
+	// StopChan is a channel to stop the peer discovery immediately after reception.
 	StopChan chan struct{}
 	// AllowSelf will allow discovery the local machine (default false)
 	AllowSelf bool

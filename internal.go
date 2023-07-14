@@ -94,9 +94,9 @@ func filterInterfaces(useIpv4 bool) (ifaces []net.Interface, err error) {
 			}
 
 			// An IP can either be an IPv4 or an IPv6 address.
-			// Check if the desired familiy is used.
-			familiyMatches := (addr.IP.To4() != nil) == useIpv4
-			if familiyMatches {
+			// Check if the desired family is used.
+			familyMatches := (addr.IP.To4() != nil) == useIpv4
+			if familyMatches {
 				supported = true
 				break
 			}
