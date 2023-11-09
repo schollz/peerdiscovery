@@ -7,17 +7,17 @@ import (
 	"time"
 
 	"github.com/schollz/peerdiscovery"
-	"github.com/schollz/progressbar/v2"
+	"github.com/schollz/progressbar/v3"
 )
 
 func main() {
-	fmt.Println("Scanning for 10 seconds to find LAN peers")
+	fmt.Println("Scanning for 30 seconds to find LAN peers")
 	// show progress bar
 	go func() {
-		bar := progressbar.New(10)
-		for i := 0; i < 10; i++ {
+		bar := progressbar.New(300)
+		for i := 0; i < 300; i++ {
 			bar.Add(1)
-			time.Sleep(1 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 		fmt.Print("\n")
 	}()
@@ -26,8 +26,8 @@ func main() {
 	discoveries, err := peerdiscovery.Discover(peerdiscovery.Settings{
 		Limit:     -1,
 		Payload:   []byte(randStringBytesMaskImprSrc(10)),
-		Delay:     500 * time.Millisecond,
-		TimeLimit: 10 * time.Second,
+		Delay:     100 * time.Millisecond,
+		TimeLimit: 30 * time.Second,
 		Notify: func(d peerdiscovery.Discovered) {
 			log.Println(d)
 		},
