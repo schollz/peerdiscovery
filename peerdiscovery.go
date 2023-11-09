@@ -167,7 +167,7 @@ func newPeerDiscovery(settings ...Settings) (pd *PeerDiscovery, discoveries []Di
 		p2.JoinGroup(&ifaces[i], &net.UDPAddr{IP: group, Port: portNum})
 	}
 
-	go p.listen()
+	go p.listen(c)
 	ticker := time.NewTicker(tickerDuration)
 	defer ticker.Stop()
 	start := time.Now()

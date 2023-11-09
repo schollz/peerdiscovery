@@ -1,7 +1,6 @@
 package peerdiscovery
 
 import (
-	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -82,9 +81,8 @@ func (p *PeerDiscovery) ActivePeers() (peers []*PeerState) {
 
 // Listen binds to the UDP address and port given and writes packets received
 // from that address to a buffer which is passed to a hander
-func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
+func (p *PeerDiscovery) listen(c net.PacketConn) (recievedBytes []byte, err error) {
 	p.RLock()
-	address := net.JoinHostPort(p.settings.MulticastAddress, p.settings.Port)
 	portNum := p.settings.portNum
 	allowSelf := p.settings.AllowSelf
 	timeLimit := p.settings.TimeLimit
@@ -98,13 +96,6 @@ func (p *PeerDiscovery) listen() (recievedBytes []byte, err error) {
 		return nil, err
 	}
 	// log.Println(ifaces)
-
-	// Open up a connection
-	c, err := net.ListenPacket(fmt.Sprintf("udp%d", p.settings.IPVersion), address)
-	if err != nil {
-		return nil, err
-	}
-	defer c.Close()
 
 	group := p.settings.multicastAddressNumbers
 	var p2 NetPacketConn
