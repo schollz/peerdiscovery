@@ -31,6 +31,7 @@ func main() {
 		Notify: func(d peerdiscovery.Discovered) {
 			log.Println(d)
 		},
+		MulticastAddress: "239.255.255.250",
 	})
 
 	// print out results
